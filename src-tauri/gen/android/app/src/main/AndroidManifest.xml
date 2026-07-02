@@ -1,28 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <!-- Storage permissions -->
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
-        android:minSdkVersion="30" />
+
     <!-- AndroidTV support -->
     <uses-feature android:name="android.software.leanback" android:required="false" />
 
     <application
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:theme="@style/Theme.ssh_tauri"
-        android:requestLegacyExternalStorage="true"
-        android:usesCleartextTraffic="${usesCleartextTraffic}"
-        android:hardwareAccelerated="true"
-        android:largeHeap="true">
+        android:theme="@style/Theme.crash_tauri"
+        android:usesCleartextTraffic="${usesCleartextTraffic}">
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
             android:launchMode="singleTask"
             android:label="@string/main_activity_title"
             android:name=".MainActivity"
-            android:theme="@style/Theme.ssh_tauri"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
