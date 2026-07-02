@@ -1,0 +1,15 @@
+{
+  "app": {
+    "security": {
+      "capabilities": ["windows"]
+    }
+  },
+  "bundle": {
+    "icon": ["icons/icon.ico"],
+    "windows": {
+      "nsis": {
+        "installerIcon": "../public/icon.ico"
+      }
+    }
+  }
+}

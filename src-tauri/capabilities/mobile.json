@@ -1,0 +1,28 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "mobile",
+  "description": "Mobile capabilities for the main window",
+  "platforms": ["android"],
+  "windows": ["main"],
+  "permissions": [
+    "opener:default",
+    "opener:allow-default-urls",
+    "core:default",
+    "fs:read-all",
+    "fs:write-all",
+    "clipboard-manager:default",
+    "clipboard-manager:allow-write-text",
+    "os:default",
+    "os:allow-hostname",
+    "core:window:allow-set-size",
+    "core:window:allow-outer-size",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        {
+          "path": "**/*"
+        }
+      ]
+    }
+  ]
+}

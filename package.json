@@ -1,0 +1,38 @@
+{
+  "name": "crash-tauri",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "pre-check": "oxfmt && oxlint --fix",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "android:init": "tauri android init",
+    "android:dev": "tauri android dev",
+    "android:build": "tauri android build --target aarch64",
+    "icon": "tauri icon ./public/icon-android.png && cp public/icon.ico src-tauri/icons/icon.ico"
+  },
+  "dependencies": {
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.1",
+    "@mui/icons-material": "9.1.1",
+    "@mui/material": "9.1.2",
+    "@tauri-apps/api": "2.11.1",
+    "@tauri-apps/plugin-opener": "2.5.4",
+    "@tauri-apps/plugin-os": "2.3.2",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.11.4",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.3",
+    "oxfmt": "0.57.0",
+    "oxlint": "1.72.0",
+    "typescript": "6.0.3",
+    "vite": "8.1.2"
+  }
+}
