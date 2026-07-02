@@ -1,4 +1,4 @@
-package com.ahaoboy.ssh_tauri
+package com.ahaoboy.crash_tauri
 
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
