@@ -26,6 +26,7 @@ import {
   Settings,
   ContentCopy,
   CheckCircle,
+  CloudUpload,
   Error as ErrorIcon,
 } from "@mui/icons-material";
 import DashboardHeader from "./DashboardHeader";
@@ -34,37 +35,12 @@ import type { CommandOutput, CrashCommandDef, CommandState, SshConfig } from "..
 // ── Command definitions (extensible) ────────────────────────────────────
 
 const CRASH_COMMANDS: CrashCommandDef[] = [
-  {
-    id: "start",
-    label: "Start",
-    description: "Force start the crash service",
-    args: ["start", "-f"],
-  },
-  {
-    id: "stop",
-    label: "Stop",
-    description: "Force stop the crash service",
-    args: ["stop", "-f"],
-  },
-  {
-    id: "status",
-    label: "Status",
-    description: "Show crash service status",
-    args: ["status"],
-  },
-  {
-    id: "update-url",
-    label: "Update URL",
-    description: "Force update the crash URL",
-    args: ["update-url", "-f"],
-  },
-  {
-    id: "config-url",
-    label: "Config URL",
-    description: "Set crash config URL",
-    args: ["config", "url"],
-    needsUrl: true,
-  },
+  { id: "start", label: "Start", args: ["start", "-f"] },
+  { id: "stop", label: "Stop", args: ["stop", "-f"] },
+  { id: "status", label: "Status", args: ["status"] },
+  { id: "update", label: "Update", args: ["update-url", "-f"] },
+  { id: "config", label: "Config", args: ["config", "url"], needsUrl: true },
+  { id: "upgrade", label: "Upgrade", args: ["upgrade", "crash-assets"] },
 ];
 
 /** Icon per command id (used in Run button). */
@@ -72,8 +48,9 @@ const CMD_ICONS: Record<string, React.ReactNode> = {
   start: <PlayArrow />,
   stop: <Stop />,
   status: <Info />,
-  "update-url": <Link />,
-  "config-url": <Settings />,
+  update: <Link />,
+  config: <Settings />,
+  upgrade: <CloudUpload />,
 };
 
 // ── Props ────────────────────────────────────────────────────────────────
@@ -221,8 +198,8 @@ export default function Dashboard({
               {CRASH_COMMANDS.map((cmd) => (
                 <MenuItem key={cmd.id} value={cmd.id} dense>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: "100%" }}>
-                    <Typography variant="body2" sx={{ fontFamily: "monospace", flex: 1 }}>
-                      crash {cmd.args.join(" ")}
+                    <Typography variant="body2" sx={{ flex: 1 }}>
+                      {cmd.label}
                     </Typography>
                     {renderStatusChip(cmd.id)}
                   </Box>
@@ -246,10 +223,26 @@ export default function Dashboard({
               (selectedCmd.needsUrl && !urlInput.trim())
             }
             startIcon={CMD_ICONS[selectedCmdId] ?? <Settings />}
-            sx={{ textTransform: "none", fontFamily: "monospace" }}
+            sx={{ textTransform: "none" }}
           >
             Run
           </Button>
+          <Typography
+            variant="body2"
+            sx={{
+              fontFamily: "monospace",
+              fontSize: 12,
+              color: "text.secondary",
+              bgcolor: "action.hover",
+              px: 1,
+              py: 0.3,
+              borderRadius: 1,
+              border: 1,
+              borderColor: "divider",
+            }}
+          >
+            crash {selectedCmd.args.join(" ")}
+          </Typography>
         </Stack>
 
         {/* URL input for config-url command */}
@@ -295,22 +288,21 @@ export default function Dashboard({
 
         <Paper
           ref={outputRef}
-          variant="outlined"
+          elevation={3}
           sx={{
             flex: 1,
-            p: 1.5,
+            p: 2,
             overflow: "auto",
+            bgcolor: "#1e1e1e",
+            color: "#d4d4d4",
             fontFamily: "'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace",
             fontSize: 13,
-            lineHeight: 1.5,
-            bgcolor: "background.default",
+            lineHeight: 1.6,
             borderRadius: 1,
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-all",
           }}
         >
           {!hasOutput ? (
-            <Typography variant="body2" color="text.disabled" sx={{ fontFamily: "inherit" }}>
+            <Typography component="div" sx={{ color: "#808080", fontFamily: "inherit" }}>
               Click a command above to execute it. Output will appear here.
             </Typography>
           ) : (
@@ -321,62 +313,71 @@ export default function Dashboard({
               }
               return (
                 <Box key={cmd.id} sx={{ mb: 1.5 }}>
-                  <Typography
+                  <Box
                     component="span"
                     sx={{
-                      color: "primary.main",
+                      color: "#569cd6",
                       fontWeight: 600,
                       fontFamily: "inherit",
                     }}
                   >
                     $ crash {cmd.args.join(" ")}
-                  </Typography>
+                  </Box>
                   {state.status === "running" && (
-                    <Typography
+                    <Box
                       component="div"
-                      sx={{ color: "text.secondary", fontStyle: "italic", fontFamily: "inherit" }}
+                      sx={{ color: "#808080", fontStyle: "italic", fontFamily: "inherit" }}
                     >
                       Executing...
-                    </Typography>
+                    </Box>
                   )}
                   {state.output && (
                     <>
                       {state.output.stdout && (
-                        <Typography
+                        <Box
                           component="div"
-                          sx={{ color: "text.primary", fontFamily: "inherit", mt: 0.25 }}
+                          sx={{
+                            color: "#d4d4d4",
+                            fontFamily: "inherit",
+                            mt: 0.25,
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-all",
+                          }}
                         >
                           {state.output.stdout.trimEnd()}
-                        </Typography>
+                        </Box>
                       )}
                       {state.output.stderr && (
-                        <Typography
+                        <Box
                           component="div"
-                          sx={{ color: "warning.main", fontFamily: "inherit", mt: 0.25 }}
+                          sx={{
+                            color: "#f48771",
+                            fontFamily: "inherit",
+                            mt: 0.25,
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-all",
+                          }}
                         >
                           {state.output.stderr.trimEnd()}
-                        </Typography>
+                        </Box>
                       )}
-                      <Typography
+                      <Box
                         component="div"
                         sx={{
-                          color: state.output.exit_code === 0 ? "success.main" : "error.main",
+                          color: state.output.exit_code === 0 ? "#6a9955" : "#f44747",
                           fontSize: 11,
                           fontFamily: "inherit",
                           mt: 0.25,
                         }}
                       >
                         [exit: {state.output.exit_code}]
-                      </Typography>
+                      </Box>
                     </>
                   )}
                   {state.error && (
-                    <Typography
-                      component="div"
-                      sx={{ color: "error.main", fontFamily: "inherit", mt: 0.25 }}
-                    >
+                    <Box component="div" sx={{ color: "#f44747", fontFamily: "inherit", mt: 0.25 }}>
                       Error: {state.error}
-                    </Typography>
+                    </Box>
                   )}
                 </Box>
               );

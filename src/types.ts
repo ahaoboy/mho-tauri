@@ -37,10 +37,9 @@ export interface SavedConfig {
 export interface CrashCommandDef {
   id: string;
   label: string;
-  description: string;
   /** The crash subcommand and its arguments. */
   args: string[];
-  /** Whether this command requires a URL input (e.g., "config url"). */
+  /** Whether this command requires an extra input (e.g., URL for "config url"). */
   needsUrl?: boolean;
 }
 

@@ -27,14 +27,10 @@
       "assetProtocol": {
         "enable": true,
         "scope": {
-          "allow": [
-            "**"
-          ]
+          "allow": ["**"]
         }
       },
-      "capabilities": [
-        "default"
-      ]
+      "capabilities": ["default"]
     }
   },
   "bundle": {
@@ -55,9 +51,7 @@
         "installMode": "passive"
       },
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE1NTAyOURBQjU2QUE3QUMKUldTc3AycTEyaWxRcGNudlRLYUx3d05MRE5UN0YzQVZ4dEJ6RjU2UVRlVFViT3JUNHVKcjA0TjcK",
-      "endpoints": [
-        "https://github.com/ahaoboy/crash-tauri/releases/latest/download/latest.json"
-      ]
+      "endpoints": ["https://github.com/ahaoboy/crash-tauri/releases/latest/download/latest.json"]
     }
   }
 }
