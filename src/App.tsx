@@ -223,6 +223,13 @@ export default function App() {
     setError("");
   }, []);
 
+  // ── Disable right-click context menu ──────────────────────
+  useEffect(() => {
+    const handler = (e: MouseEvent) => e.preventDefault();
+    document.addEventListener("contextmenu", handler);
+    return () => document.removeEventListener("contextmenu", handler);
+  }, []);
+
   // ── Window orientation ────────────────────────────────────
   const orientation =
     loggedIn && !isMobile() && screen.width > screen.height ? "landscape" : "portrait";

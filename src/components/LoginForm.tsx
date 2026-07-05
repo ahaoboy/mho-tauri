@@ -168,9 +168,6 @@ export default function LoginForm({
           <Typography variant="h5" sx={{ fontWeight: 600 }} gutterBottom>
             Crash
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Remote crash command wrapper
-          </Typography>
         </Box>
 
         {/* ── Saved configs quick-select ─────────────── */}
