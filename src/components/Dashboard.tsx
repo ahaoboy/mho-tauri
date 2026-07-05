@@ -35,9 +35,9 @@ import type { CommandOutput, CrashCommandDef, CommandState, SshConfig } from "..
 // ── Command definitions (extensible) ────────────────────────────────────
 
 const CRASH_COMMANDS: CrashCommandDef[] = [
+  { id: "status", label: "Status", args: ["status"] },
   { id: "start", label: "Start", args: ["start", "-f"] },
   { id: "stop", label: "Stop", args: ["stop", "-f"] },
-  { id: "status", label: "Status", args: ["status"] },
   { id: "update", label: "Update", args: ["update-url", "-f"] },
   { id: "config", label: "Config", args: ["config", "url"], needsUrl: true },
   { id: "upgrade", label: "Upgrade", args: ["upgrade", "crash-assets"] },
@@ -124,25 +124,17 @@ export default function Dashboard({
 
   // ── Copy output to clipboard ──────────────────────────────────
   const handleCopyOutput = useCallback(async () => {
+    const state = commandStates[selectedCmdId];
+    if (!state?.output) return;
+    const cmd = CRASH_COMMANDS.find((c) => c.id === selectedCmdId);
+    if (!cmd) return;
     const lines: string[] = [];
-    for (const cmd of CRASH_COMMANDS) {
-      const state = commandStates[cmd.id];
-      if (state?.output) {
-        lines.push(`$ crash ${cmd.args.join(" ")}`);
-        if (state.output.stdout) lines.push(state.output.stdout.trimEnd());
-        if (state.output.stderr) lines.push(`[stderr] ${state.output.stderr.trimEnd()}`);
-        lines.push(`[exit: ${state.output.exit_code}]`);
-        lines.push("");
-      }
-    }
-    if (lines.length > 0) {
-      try {
-        await navigator.clipboard.writeText(lines.join("\n"));
-      } catch {
-        // ignore
-      }
-    }
-  }, [commandStates]);
+    lines.push(`$ crash ${cmd.args.join(" ")}`);
+    if (state.output.stdout) lines.push(state.output.stdout.trimEnd());
+    if (state.output.stderr) lines.push(`[stderr] ${state.output.stderr.trimEnd()}`);
+    lines.push(`[exit: ${state.output.exit_code}]`);
+    await navigator.clipboard.writeText(lines.join("\n"));
+  }, [commandStates, selectedCmdId]);
 
   // ── Auto-scroll output ────────────────────────────────────────
   useEffect(() => {
@@ -164,8 +156,8 @@ export default function Dashboard({
     return <ErrorIcon sx={{ fontSize: 16, ml: 1, color: "error.main" }} />;
   };
 
-  // ── Check if any command has output ───────────────────────────
-  const hasOutput = Object.values(commandStates).some((s) => s.output || s.error);
+  // ── Check if selected command has output ─────────────────────
+  const hasOutput = !!commandStates[selectedCmdId]?.output || !!commandStates[selectedCmdId]?.error;
 
   return (
     <Box
@@ -301,88 +293,87 @@ export default function Dashboard({
             borderRadius: 1,
           }}
         >
-          {!hasOutput ? (
-            <Typography component="div" sx={{ color: "#808080", fontFamily: "inherit" }}>
-              Click a command above to execute it. Output will appear here.
-            </Typography>
-          ) : (
-            CRASH_COMMANDS.map((cmd) => {
-              const state = commandStates[cmd.id];
-              if (!state || (state.status === "idle" && !state.output && !state.error)) {
-                return null;
-              }
+          {(() => {
+            const state = commandStates[selectedCmdId];
+            if (!state || (state.status === "idle" && !state.output && !state.error)) {
               return (
-                <Box key={cmd.id} sx={{ mb: 1.5 }}>
+                <Typography component="div" sx={{ color: "#808080", fontFamily: "inherit" }}>
+                  Click a command above to execute it. Output will appear here.
+                </Typography>
+              );
+            }
+            const cmd = selectedCmd;
+            return (
+              <Box>
+                <Box
+                  component="span"
+                  sx={{
+                    color: "#569cd6",
+                    fontWeight: 600,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  $ crash {cmd.args.join(" ")}
+                </Box>
+                {state.status === "running" && (
                   <Box
-                    component="span"
-                    sx={{
-                      color: "#569cd6",
-                      fontWeight: 600,
-                      fontFamily: "inherit",
-                    }}
+                    component="div"
+                    sx={{ color: "#808080", fontStyle: "italic", fontFamily: "inherit" }}
                   >
-                    $ crash {cmd.args.join(" ")}
+                    Executing...
                   </Box>
-                  {state.status === "running" && (
-                    <Box
-                      component="div"
-                      sx={{ color: "#808080", fontStyle: "italic", fontFamily: "inherit" }}
-                    >
-                      Executing...
-                    </Box>
-                  )}
-                  {state.output && (
-                    <>
-                      {state.output.stdout && (
-                        <Box
-                          component="div"
-                          sx={{
-                            color: "#d4d4d4",
-                            fontFamily: "inherit",
-                            mt: 0.25,
-                            whiteSpace: "pre-wrap",
-                            wordBreak: "break-all",
-                          }}
-                        >
-                          {state.output.stdout.trimEnd()}
-                        </Box>
-                      )}
-                      {state.output.stderr && (
-                        <Box
-                          component="div"
-                          sx={{
-                            color: "#f48771",
-                            fontFamily: "inherit",
-                            mt: 0.25,
-                            whiteSpace: "pre-wrap",
-                            wordBreak: "break-all",
-                          }}
-                        >
-                          {state.output.stderr.trimEnd()}
-                        </Box>
-                      )}
+                )}
+                {state.output && (
+                  <>
+                    {state.output.stdout && (
                       <Box
                         component="div"
                         sx={{
-                          color: state.output.exit_code === 0 ? "#6a9955" : "#f44747",
-                          fontSize: 11,
+                          color: "#d4d4d4",
                           fontFamily: "inherit",
                           mt: 0.25,
+                          whiteSpace: "pre-wrap",
+                          wordBreak: "break-all",
                         }}
                       >
-                        [exit: {state.output.exit_code}]
+                        {state.output.stdout.trimEnd()}
                       </Box>
-                    </>
-                  )}
-                  {state.error && (
-                    <Box component="div" sx={{ color: "#f44747", fontFamily: "inherit", mt: 0.25 }}>
-                      Error: {state.error}
+                    )}
+                    {state.output.stderr && (
+                      <Box
+                        component="div"
+                        sx={{
+                          color: "#f48771",
+                          fontFamily: "inherit",
+                          mt: 0.25,
+                          whiteSpace: "pre-wrap",
+                          wordBreak: "break-all",
+                        }}
+                      >
+                        {state.output.stderr.trimEnd()}
+                      </Box>
+                    )}
+                    <Box
+                      component="div"
+                      sx={{
+                        color: state.output.exit_code === 0 ? "#6a9955" : "#f44747",
+                        fontSize: 11,
+                        fontFamily: "inherit",
+                        mt: 0.25,
+                      }}
+                    >
+                      [exit: {state.output.exit_code}]
                     </Box>
-                  )}
-                </Box>
-              );
-            })
-          )}
+                  </>
+                )}
+                {state.error && (
+                  <Box component="div" sx={{ color: "#f44747", fontFamily: "inherit", mt: 0.25 }}>
+                    Error: {state.error}
+                  </Box>
+                )}
+              </Box>
+            );
+          })()}
         </Paper>
       </Box>
     </Box>
