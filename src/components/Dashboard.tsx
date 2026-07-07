@@ -53,6 +53,39 @@ const CMD_ICONS: Record<string, React.ReactNode> = {
   upgrade: <CloudUpload />,
 };
 
+// ── URL detection regex ──────────────────────────────────────────────────
+const URL_RE = /https?:\/\/[^\s<>"'{}|\\^`[\])]+/gi;
+
+/** Split text into segments, converting URLs into <a> elements. */
+function linkify(text: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  let last = 0;
+  let match: RegExpExecArray | null;
+  URL_RE.lastIndex = 0;
+  while ((match = URL_RE.exec(text)) !== null) {
+    if (match.index > last) {
+      parts.push(text.slice(last, match.index));
+    }
+    parts.push(
+      <Box
+        component="a"
+        key={match.index}
+        href={match[0]}
+        target="_blank"
+        rel="noopener noreferrer"
+        sx={{ color: "#6ea8fe", textDecoration: "underline" }}
+      >
+        {match[0]}
+      </Box>,
+    );
+    last = URL_RE.lastIndex;
+  }
+  if (last < text.length) {
+    parts.push(text.slice(last));
+  }
+  return parts;
+}
+
 // ── Props ────────────────────────────────────────────────────────────────
 
 interface DashboardProps {
@@ -336,7 +369,7 @@ export default function Dashboard({
                           wordBreak: "break-all",
                         }}
                       >
-                        {state.output.stdout.trimEnd()}
+                        {linkify(state.output.stdout.trimEnd())}
                       </Box>
                     )}
                     {state.output.stderr && (
@@ -350,7 +383,7 @@ export default function Dashboard({
                           wordBreak: "break-all",
                         }}
                       >
-                        {state.output.stderr.trimEnd()}
+                        {linkify(state.output.stderr.trimEnd())}
                       </Box>
                     )}
                     <Box
