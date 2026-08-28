@@ -30,24 +30,18 @@ import {
   Error as ErrorIcon,
 } from "@mui/icons-material";
 import DashboardHeader from "./DashboardHeader";
-import type { CommandOutput, CrashCommandDef, CommandState, SshConfig } from "../types";
+import {
+  type CommandOutput,
+  type CrashCommandDef,
+  type CommandState,
+  type SshConfig,
+  type CrashCommandId,
+  DEFAULT_COMMAND_ID,
+  CRASH_COMMANDS,
+  isUrlCommand,
+} from "../types";
 
 // ── Command definitions (extensible, single source of truth) ─────────────
-
-const CRASH_COMMANDS: CrashCommandDef[] = [
-  { id: "status", label: "Status", args: ["status"] },
-  { id: "start", label: "Start", args: ["start", "-f"] },
-  { id: "stop", label: "Stop", args: ["stop", "-f"] },
-  { id: "update", label: "Update", args: ["update-url", "-f"] },
-  { id: "config", label: "Config", args: ["config", "url"], needsUrl: true },
-  { id: "upgrade", label: "Upgrade", args: ["upgrade", "crash-assets"] },
-];
-
-/** Id type derived from the command definitions above. */
-type CrashCommandId = (typeof CRASH_COMMANDS)[number]["id"];
-
-/** Default command selected on first load. */
-const DEFAULT_COMMAND_ID: CrashCommandId = "start";
 
 /** Icon per command id (used in Run button). */
 const CMD_ICONS: Record<string, React.ReactNode> = {
@@ -242,16 +236,16 @@ export default function Dashboard({
             variant="contained"
             size="small"
             onClick={() => {
-              if (selectedCmd.needsUrl && urlInput.trim()) {
+              if (isUrlCommand(selectedCmd.id) && urlInput.trim()) {
                 executeCommand(selectedCmd, urlInput.trim());
                 setUrlInput("");
-              } else if (!selectedCmd.needsUrl) {
+              } else if (!isUrlCommand(selectedCmd.id)) {
                 executeCommand(selectedCmd);
               }
             }}
             disabled={
               commandStates[selectedCmdId]?.status === "running" ||
-              (selectedCmd.needsUrl && !urlInput.trim())
+              (isUrlCommand(selectedCmd.id) && !urlInput.trim())
             }
             startIcon={CMD_ICONS[selectedCmdId] ?? <Settings />}
             sx={{ textTransform: "none" }}
@@ -276,8 +270,8 @@ export default function Dashboard({
           </Typography>
         </Stack>
 
-        {/* URL input for config-url command */}
-        {selectedCmd.needsUrl && (
+        {/* URL input for commands that require a URL */}
+        {isUrlCommand(selectedCmd.id) && (
           <TextField
             size="small"
             placeholder="https://example.com"

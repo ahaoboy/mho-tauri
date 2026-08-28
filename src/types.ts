@@ -39,8 +39,6 @@ export interface CrashCommandDef {
   label: string;
   /** The crash subcommand and its arguments. */
   args: string[];
-  /** Whether this command requires an extra input (e.g., URL for "config url"). */
-  needsUrl?: boolean;
 }
 
 /** Execution status of a command. */
@@ -51,4 +49,27 @@ export interface CommandState {
   status: ExecutionStatus;
   output: CommandOutput | null;
   error: string | null;
+}
+
+export const CRASH_COMMANDS = [
+  { id: "status", label: "Status", args: ["status"] },
+  { id: "start", label: "Start", args: ["start", "-f"] },
+  { id: "stop", label: "Stop", args: ["stop", "-f"] },
+  { id: "update", label: "Update", args: ["update-url", "-f"] },
+  { id: "config", label: "Config", args: ["config", "url"] },
+  { id: "upgrade", label: "Upgrade", args: ["upgrade", "crash-assets"] },
+] as const satisfies readonly CrashCommandDef[];
+
+/** Id type derived from the command definitions above. */
+export type CrashCommandId = (typeof CRASH_COMMANDS)[number]["id"];
+
+/** Default command selected on first load. */
+export const DEFAULT_COMMAND_ID: CrashCommandId = "start";
+
+/** Commands that require a URL input argument. */
+const URL_COMMANDS: ReadonlySet<CrashCommandId> = new Set(["config"]);
+
+/** Whether the given command requires a URL input. */
+export function isUrlCommand(id: CrashCommandId): boolean {
+  return URL_COMMANDS.has(id);
 }
