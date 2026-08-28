@@ -32,16 +32,22 @@ import {
 import DashboardHeader from "./DashboardHeader";
 import type { CommandOutput, CrashCommandDef, CommandState, SshConfig } from "../types";
 
-// ── Command definitions (extensible) ────────────────────────────────────
+// ── Command definitions (extensible, single source of truth) ─────────────
 
-const CRASH_COMMANDS: CrashCommandDef[] = [
+const CRASH_COMMANDS = [
   { id: "status", label: "Status", args: ["status"] },
   { id: "start", label: "Start", args: ["start", "-f"] },
   { id: "stop", label: "Stop", args: ["stop", "-f"] },
   { id: "update", label: "Update", args: ["update-url", "-f"] },
   { id: "config", label: "Config", args: ["config", "url"], needsUrl: true },
   { id: "upgrade", label: "Upgrade", args: ["upgrade", "crash-assets"] },
-];
+] as const satisfies readonly CrashCommandDef[];
+
+/** Id type derived from the command definitions above. */
+type CrashCommandId = (typeof CRASH_COMMANDS)[number]["id"];
+
+/** Default command selected on first load. */
+const DEFAULT_COMMAND_ID: CrashCommandId = "start";
 
 /** Icon per command id (used in Run button). */
 const CMD_ICONS: Record<string, React.ReactNode> = {
@@ -107,7 +113,7 @@ export default function Dashboard({
   sshConfig,
   onDisconnect,
 }: DashboardProps) {
-  const [selectedCmdId, setSelectedCmdId] = useState(CRASH_COMMANDS[0].id);
+  const [selectedCmdId, setSelectedCmdId] = useState<CrashCommandId>(DEFAULT_COMMAND_ID);
   const [urlInput, setUrlInput] = useState("");
   const [commandStates, setCommandStates] = useState<Record<string, CommandState>>({});
   const outputRef = useRef<HTMLDivElement>(null);
