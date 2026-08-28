@@ -34,14 +34,14 @@ import type { CommandOutput, CrashCommandDef, CommandState, SshConfig } from "..
 
 // ── Command definitions (extensible, single source of truth) ─────────────
 
-const CRASH_COMMANDS = [
+const CRASH_COMMANDS: CrashCommandDef[] = [
   { id: "status", label: "Status", args: ["status"] },
   { id: "start", label: "Start", args: ["start", "-f"] },
   { id: "stop", label: "Stop", args: ["stop", "-f"] },
   { id: "update", label: "Update", args: ["update-url", "-f"] },
   { id: "config", label: "Config", args: ["config", "url"], needsUrl: true },
   { id: "upgrade", label: "Upgrade", args: ["upgrade", "crash-assets"] },
-] as const satisfies readonly CrashCommandDef[];
+];
 
 /** Id type derived from the command definitions above. */
 type CrashCommandId = (typeof CRASH_COMMANDS)[number]["id"];
