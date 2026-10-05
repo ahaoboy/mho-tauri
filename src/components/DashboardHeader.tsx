@@ -11,7 +11,7 @@ interface DashboardHeaderProps {
   username: string;
   host: string;
   port: string;
-  crashPath: string;
+  mhoPath: string;
   onDisconnect: () => void;
 }
 
@@ -21,7 +21,7 @@ export default function DashboardHeader({
   username,
   host,
   port,
-  crashPath,
+  mhoPath,
   onDisconnect,
 }: DashboardHeaderProps) {
   const [copied, setCopied] = useState(false);
@@ -58,7 +58,7 @@ export default function DashboardHeader({
           color="text.secondary"
           noWrap
           onClick={handleCopy}
-          title={`${connectionString} — ${crashPath} — click to copy`}
+          title={`${connectionString} — ${mhoPath} — click to copy`}
           sx={{
             flex: 1,
             fontFamily: "monospace",
@@ -68,7 +68,7 @@ export default function DashboardHeader({
             "&:hover": { color: "text.primary" },
           }}
         >
-          {copied ? "Copied!" : `${connectionString}  ·  ${crashPath}`}
+          {copied ? "Copied!" : `${connectionString}  ·  ${mhoPath}`}
         </Typography>
 
         <IconButton size="small" color="error" onClick={onDisconnect} title="Disconnect">

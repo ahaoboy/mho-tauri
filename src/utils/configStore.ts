@@ -2,9 +2,9 @@
 
 import type { SavedConfig } from "../types";
 
-const STORAGE_KEY = "crash:configs";
-const INDEX_KEY = "crash:config-index";
-const LAST_USED_KEY = "crash:last-used";
+const STORAGE_KEY = "mho:configs";
+const INDEX_KEY = "mho:config-index";
+const LAST_USED_KEY = "mho:last-used";
 
 /** Read all stored config IDs in order. */
 function getIndex(): string[] {

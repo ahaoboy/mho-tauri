@@ -1,4 +1,4 @@
-// ── Shared types for the Crash Tauri wrapper application ────────────────────
+// ── Shared types for the Mho Tauri wrapper application ────────────────────
 
 /** Available authentication methods for SSH. */
 export type AuthMethod = "password" | "privateKey";
@@ -29,15 +29,15 @@ export interface SavedConfig {
   authMethod: AuthMethod;
   password: string;
   privateKey: string;
-  /** Path to the crash binary on the remote host (default: "crash"). */
-  crashPath: string;
+  /** Path to the mho binary on the remote host (default: "mho"). */
+  mhoPath: string;
 }
 
-/** Predefined crash commands available in the dashboard. */
-export interface CrashCommandDef {
+/** Predefined mho commands available in the dashboard. */
+export interface MhoCommandDef {
   id: string;
   label: string;
-  /** The crash subcommand and its arguments. */
+  /** The mho subcommand and its arguments. */
   args: string[];
 }
 
@@ -51,25 +51,25 @@ export interface CommandState {
   error: string | null;
 }
 
-export const CRASH_COMMANDS = [
+export const MHO_COMMANDS = [
   { id: "status", label: "Status", args: ["status"] },
   { id: "start", label: "Start", args: ["start", "-f"] },
   { id: "stop", label: "Stop", args: ["stop", "-f"] },
   { id: "update", label: "Update", args: ["update-url", "-f"] },
   { id: "config", label: "Config", args: ["config", "url"] },
-  { id: "upgrade", label: "Upgrade", args: ["upgrade", "crash-assets"] },
-] as const satisfies readonly CrashCommandDef[];
+  { id: "upgrade", label: "Upgrade", args: ["upgrade", "mho-assets"] },
+] as const satisfies readonly MhoCommandDef[];
 
 /** Id type derived from the command definitions above. */
-export type CrashCommandId = (typeof CRASH_COMMANDS)[number]["id"];
+export type MhoCommandId = (typeof MHO_COMMANDS)[number]["id"];
 
 /** Default command selected on first load. */
-export const DEFAULT_COMMAND_ID: CrashCommandId = "start";
+export const DEFAULT_COMMAND_ID: MhoCommandId = "start";
 
 /** Commands that require a URL input argument. */
-const URL_COMMANDS: ReadonlySet<CrashCommandId> = new Set(["config"]);
+const URL_COMMANDS: ReadonlySet<MhoCommandId> = new Set(["config"]);
 
 /** Whether the given command requires a URL input. */
-export function isUrlCommand(id: CrashCommandId): boolean {
+export function isUrlCommand(id: MhoCommandId): boolean {
   return URL_COMMANDS.has(id);
 }

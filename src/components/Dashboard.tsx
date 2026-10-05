@@ -1,4 +1,4 @@
-// ── Crash Tauri dashboard — command execution UI ─────────────────────────
+// ── Mho Tauri dashboard — command execution UI ─────────────────────────
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -32,12 +32,12 @@ import {
 import DashboardHeader from "./DashboardHeader";
 import {
   type CommandOutput,
-  type CrashCommandDef,
+  type MhoCommandDef,
   type CommandState,
   type SshConfig,
-  type CrashCommandId,
+  type MhoCommandId,
   DEFAULT_COMMAND_ID,
-  CRASH_COMMANDS,
+  MHO_COMMANDS,
   isUrlCommand,
 } from "../types";
 
@@ -92,7 +92,7 @@ interface DashboardProps {
   username: string;
   host: string;
   port: string;
-  crashPath: string;
+  mhoPath: string;
   sshConfig: SshConfig;
   onDisconnect: () => void;
 }
@@ -103,20 +103,20 @@ export default function Dashboard({
   username,
   host,
   port,
-  crashPath,
+  mhoPath,
   sshConfig,
   onDisconnect,
 }: DashboardProps) {
-  const [selectedCmdId, setSelectedCmdId] = useState<CrashCommandId>(DEFAULT_COMMAND_ID);
+  const [selectedCmdId, setSelectedCmdId] = useState<MhoCommandId>(DEFAULT_COMMAND_ID);
   const [urlInput, setUrlInput] = useState("");
   const [commandStates, setCommandStates] = useState<Record<string, CommandState>>({});
   const outputRef = useRef<HTMLDivElement>(null);
 
-  const selectedCmd = CRASH_COMMANDS.find((c) => c.id === selectedCmdId) ?? CRASH_COMMANDS[0];
+  const selectedCmd = MHO_COMMANDS.find((c) => c.id === selectedCmdId) ?? MHO_COMMANDS[0];
 
-  // ── Execute a crash command via SSH ────────────────────────────
+  // ── Execute a mho command via SSH ────────────────────────────
   const executeCommand = useCallback(
-    async (cmd: CrashCommandDef, extraArg?: string) => {
+    async (cmd: MhoCommandDef, extraArg?: string) => {
       const cmdId = cmd.id;
 
       setCommandStates((prev) => ({
@@ -126,9 +126,9 @@ export default function Dashboard({
 
       try {
         const args = extraArg ? [...cmd.args, extraArg] : [...cmd.args];
-        const output: CommandOutput = await invoke("execute_crash", {
+        const output: CommandOutput = await invoke("execute_mho", {
           sshConfig,
-          crashPath,
+          mhoPath,
           args,
         });
 
@@ -152,17 +152,17 @@ export default function Dashboard({
         }));
       }
     },
-    [host, port, username, crashPath, sshConfig],
+    [host, port, username, mhoPath, sshConfig],
   );
 
   // ── Copy output to clipboard ──────────────────────────────────
   const handleCopyOutput = useCallback(async () => {
     const state = commandStates[selectedCmdId];
     if (!state?.output) return;
-    const cmd = CRASH_COMMANDS.find((c) => c.id === selectedCmdId);
+    const cmd = MHO_COMMANDS.find((c) => c.id === selectedCmdId);
     if (!cmd) return;
     const lines: string[] = [];
-    lines.push(`$ crash ${cmd.args.join(" ")}`);
+    lines.push(`$ mho ${cmd.args.join(" ")}`);
     if (state.output.stdout) lines.push(state.output.stdout.trimEnd());
     if (state.output.stderr) lines.push(`[stderr] ${state.output.stderr.trimEnd()}`);
     lines.push(`[exit: ${state.output.exit_code}]`);
@@ -206,7 +206,7 @@ export default function Dashboard({
         username={username}
         host={host}
         port={port}
-        crashPath={crashPath}
+        mhoPath={mhoPath}
         onDisconnect={onDisconnect}
       />
 
@@ -220,7 +220,7 @@ export default function Dashboard({
               label="Command"
               onChange={(e) => setSelectedCmdId(e.target.value)}
             >
-              {CRASH_COMMANDS.map((cmd) => (
+              {MHO_COMMANDS.map((cmd) => (
                 <MenuItem key={cmd.id} value={cmd.id} dense>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: "100%" }}>
                     <Typography variant="body2" sx={{ flex: 1 }}>
@@ -266,7 +266,7 @@ export default function Dashboard({
               borderColor: "divider",
             }}
           >
-            crash {selectedCmd.args.join(" ")}
+            mho {selectedCmd.args.join(" ")}
           </Typography>
         </Stack>
 
@@ -346,7 +346,7 @@ export default function Dashboard({
                     fontFamily: "inherit",
                   }}
                 >
-                  $ crash {cmd.args.join(" ")}
+                  $ mho {cmd.args.join(" ")}
                 </Box>
                 {state.status === "running" && (
                   <Box

@@ -3,7 +3,7 @@
 mod commands;
 mod error;
 mod ssh;
-use commands::execute_crash;
+use commands::execute_mho;
 use tracing::info;
 
 // ── Entry point ───────────────────────────────────────────────────────────
@@ -18,11 +18,11 @@ pub fn run() {
         )
         .init();
 
-    info!("Starting Crash Tauri application");
+    info!("Starting Mho Tauri application");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![execute_crash])
+        .invoke_handler(tauri::generate_handler![execute_mho])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

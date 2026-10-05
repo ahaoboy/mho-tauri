@@ -1,4 +1,4 @@
-package com.ahaoboy.crash_tauri
+package com.ahaoboy.mho_tauri
 
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge

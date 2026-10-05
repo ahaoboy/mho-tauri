@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://github.com/ahaoboy/crash-tauri" target="_blank" rel="noopener">
+  <a href="https://github.com/ahaoboy/mho-tauri" target="_blank" rel="noopener">
     <img src="public/icon.png" alt="SSH Client" width="96" />
   </a>
 </p>
@@ -30,21 +30,21 @@
 
 ## Download
 
-> Links point to the **[latest release](https://github.com/ahaoboy/crash-tauri/releases/latest)** assets.
+> Links point to the **[latest release](https://github.com/ahaoboy/mho-tauri/releases/latest)** assets.
 
 | Platform                 | Download                                                                                                                   |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
-| 🪟 Windows (installer)   | [crash-tauri_windows_x64.exe](https://github.com/ahaoboy/crash-tauri/releases/latest/download/crash-tauri_windows_x64.exe) |
-| 🪟 Windows (MSI)         | [crash-tauri_x64_en-US.msi](https://github.com/ahaoboy/crash-tauri/releases/latest/download/crash-tauri_x64_en-US.msi)     |
-| 🍎 macOS (Intel)         | [crash-tauri_darwin_x64](https://github.com/ahaoboy/crash-tauri/releases/latest/download/crash-tauri_darwin_x64)           |
-| 🍎 macOS (Apple Silicon) | [crash-tauri_darwin_aarch64](https://github.com/ahaoboy/crash-tauri/releases/latest/download/crash-tauri_darwin_aarch64)   |
-| 🍎 macOS (Intel, DMG)    | [crash-tauri_x64.dmg](https://github.com/ahaoboy/crash-tauri/releases/latest/download/crash-tauri_x64.dmg)                 |
-| 🍎 macOS (ARM, DMG)      | [crash-tauri_aarch64.dmg](https://github.com/ahaoboy/crash-tauri/releases/latest/download/crash-tauri_aarch64.dmg)         |
-| 🐧 Linux (binary)        | [crash-tauri_linux_x64](https://github.com/ahaoboy/crash-tauri/releases/latest/download/crash-tauri_linux_x64)             |
-| 🐧 Linux (deb)           | [crash-tauri_amd64.deb](https://github.com/ahaoboy/crash-tauri/releases/latest/download/crash-tauri_amd64.deb)             |
-| 🐧 Linux (AppImage)      | [crash-tauri_amd64.AppImage](https://github.com/ahaoboy/crash-tauri/releases/latest/download/crash-tauri_amd64.AppImage)   |
-| 🐧 Linux (rpm)           | [crash-tauri.x86_64.rpm](https://github.com/ahaoboy/crash-tauri/releases/latest/download/crash-tauri.x86_64.rpm)           |
-| 🤖 Android (APK)         | [app-universal-release.apk](https://github.com/ahaoboy/crash-tauri/releases/latest/download/app-universal-release.apk)     |
+| 🪟 Windows (installer)   | [mho-tauri_windows_x64.exe](https://github.com/ahaoboy/mho-tauri/releases/latest/download/mho-tauri_windows_x64.exe) |
+| 🪟 Windows (MSI)         | [mho-tauri_x64_en-US.msi](https://github.com/ahaoboy/mho-tauri/releases/latest/download/mho-tauri_x64_en-US.msi)     |
+| 🍎 macOS (Intel)         | [mho-tauri_darwin_x64](https://github.com/ahaoboy/mho-tauri/releases/latest/download/mho-tauri_darwin_x64)           |
+| 🍎 macOS (Apple Silicon) | [mho-tauri_darwin_aarch64](https://github.com/ahaoboy/mho-tauri/releases/latest/download/mho-tauri_darwin_aarch64)   |
+| 🍎 macOS (Intel, DMG)    | [mho-tauri_x64.dmg](https://github.com/ahaoboy/mho-tauri/releases/latest/download/mho-tauri_x64.dmg)                 |
+| 🍎 macOS (ARM, DMG)      | [mho-tauri_aarch64.dmg](https://github.com/ahaoboy/mho-tauri/releases/latest/download/mho-tauri_aarch64.dmg)         |
+| 🐧 Linux (binary)        | [mho-tauri_linux_x64](https://github.com/ahaoboy/mho-tauri/releases/latest/download/mho-tauri_linux_x64)             |
+| 🐧 Linux (deb)           | [mho-tauri_amd64.deb](https://github.com/ahaoboy/mho-tauri/releases/latest/download/mho-tauri_amd64.deb)             |
+| 🐧 Linux (AppImage)      | [mho-tauri_amd64.AppImage](https://github.com/ahaoboy/mho-tauri/releases/latest/download/mho-tauri_amd64.AppImage)   |
+| 🐧 Linux (rpm)           | [mho-tauri.x86_64.rpm](https://github.com/ahaoboy/mho-tauri/releases/latest/download/mho-tauri.x86_64.rpm)           |
+| 🤖 Android (APK)         | [app-universal-release.apk](https://github.com/ahaoboy/mho-tauri/releases/latest/download/app-universal-release.apk)     |
 
 ## Features
 

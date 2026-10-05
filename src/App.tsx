@@ -1,4 +1,4 @@
-// ── Crash Tauri — main application controller ─────────────────────────────
+// ── Mho Tauri — main application controller ─────────────────────────────
 
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -29,7 +29,7 @@ export default function App() {
   const [authMethod, setAuthMethod] = useState<AuthMethod>("password");
   const [password, setPassword] = useState("");
   const [privateKey, setPrivateKey] = useState("");
-  const [crashPath, setCrashPath] = useState("crash");
+  const [mhoPath, setMhoPath] = useState("mho");
   // Track whether the user has manually edited the config label
   const [labelEdited, setLabelEdited] = useState(false);
 
@@ -85,7 +85,7 @@ export default function App() {
       username: setUsername,
       password: setPassword,
       privateKey: setPrivateKey,
-      crashPath: setCrashPath,
+      mhoPath: setMhoPath,
     };
     setters[field]?.(value);
   }, []);
@@ -99,7 +99,7 @@ export default function App() {
     setAuthMethod(config.authMethod);
     setPassword(config.password);
     setPrivateKey(config.privateKey);
-    setCrashPath(config.crashPath ?? "crash");
+    setMhoPath(config.mhoPath ?? "mho");
     setLabelEdited(true);
   }, []);
 
@@ -116,7 +116,7 @@ export default function App() {
       authMethod,
       password,
       privateKey,
-      crashPath,
+      mhoPath,
     };
     saveConfig(config);
     setSelectedConfigId(id);
@@ -131,7 +131,7 @@ export default function App() {
     authMethod,
     password,
     privateKey,
-    crashPath,
+    mhoPath,
     reloadConfigs,
   ]);
 
@@ -169,9 +169,9 @@ export default function App() {
     try {
       // Validate connection by running a simple echo command
       const sshConfig = buildSshConfig();
-      await invoke("execute_crash", {
+      await invoke("execute_mho", {
         sshConfig,
-        crashPath: "echo",
+        mhoPath: "echo",
         args: ["connected"],
       });
 
@@ -190,7 +190,7 @@ export default function App() {
         authMethod,
         password,
         privateKey,
-        crashPath,
+        mhoPath,
       };
       saveConfig(config);
       setLastUsedConfigId(config.id);
@@ -209,7 +209,7 @@ export default function App() {
     authMethod,
     password,
     privateKey,
-    crashPath,
+    mhoPath,
     buildSshConfig,
     savedConfigs,
     selectedConfigId,
@@ -245,7 +245,7 @@ export default function App() {
       authMethod,
       password,
       privateKey,
-      crashPath,
+      mhoPath,
       connecting,
       error,
       savedConfigs,
@@ -266,7 +266,7 @@ export default function App() {
       authMethod,
       password,
       privateKey,
-      crashPath,
+      mhoPath,
       connecting,
       error,
       savedConfigs,
@@ -290,7 +290,7 @@ export default function App() {
           username={username}
           host={host}
           port={port}
-          crashPath={crashPath}
+          mhoPath={mhoPath}
           sshConfig={sshConfig}
           onDisconnect={handleDisconnect}
         />

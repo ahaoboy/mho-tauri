@@ -1,4 +1,4 @@
-// ── Crash Tauri login form component ──────────────────────────────────────
+// ── Mho Tauri login form component ──────────────────────────────────────
 
 import { useState, useCallback } from "react";
 import {
@@ -42,8 +42,8 @@ interface LoginFormProps {
   authMethod: AuthMethod;
   password: string;
   privateKey: string;
-  /** Path to the crash binary on the remote host. */
-  crashPath: string;
+  /** Path to the mho binary on the remote host. */
+  mhoPath: string;
   /** "true" when a login attempt is in progress. */
   connecting: boolean;
   /** Error message to display. */
@@ -79,7 +79,7 @@ function getDefaultConfig(): SavedConfig {
     authMethod: "password",
     password: "",
     privateKey: "",
-    crashPath: "crash",
+    mhoPath: "mho",
   };
 }
 
@@ -93,7 +93,7 @@ export default function LoginForm({
   authMethod,
   password,
   privateKey,
-  crashPath,
+  mhoPath,
   connecting,
   error,
   savedConfigs,
@@ -153,7 +153,7 @@ export default function LoginForm({
         <Box sx={{ textAlign: "center", mb: 3 }}>
           <Box
             component="a"
-            href="https://github.com/ahaoboy/crash-tauri"
+            href="https://github.com/ahaoboy/mho-tauri"
             target="_blank"
             rel="noopener noreferrer"
             sx={{ display: "inline-block", cursor: "pointer" }}
@@ -161,12 +161,12 @@ export default function LoginForm({
             <Box
               component="img"
               src="/icon.png"
-              alt="Crash Tauri"
+              alt="Mho Tauri"
               sx={{ width: 100, height: 100 }}
             />
           </Box>
           <Typography variant="h5" sx={{ fontWeight: 600 }} gutterBottom>
-            Crash
+            Mho
           </Typography>
         </Box>
 
@@ -320,13 +320,13 @@ export default function LoginForm({
             />
           )}
 
-          {/* Crash binary path */}
+          {/* Mho binary path */}
           <TextField
-            label="Crash Binary Path"
-            value={crashPath}
-            onChange={(e) => handleFieldChange("crashPath", e.target.value)}
-            placeholder="crash"
-            helperText="Path to the crash binary on the remote host"
+            label="Mho Binary Path"
+            value={mhoPath}
+            onChange={(e) => handleFieldChange("mhoPath", e.target.value)}
+            placeholder="mho"
+            helperText="Path to the mho binary on the remote host"
             slotProps={{
               input: {
                 startAdornment: (
