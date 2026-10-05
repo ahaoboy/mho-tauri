@@ -2,10 +2,12 @@
 
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { homeDir, join } from "@tauri-apps/api/path";
+import { readTextFile } from "@tauri-apps/plugin-fs";
 import { CssBaseline } from "@mui/material";
 import { useAutoOrientation } from "./hooks/useAutoOrientation";
 import { isMobile } from "./utils/platform";
-import type { AuthMethod, SshConfig, SavedConfig } from "./types";
+import type { AuthMethod, ParsedSshInput, SshConfig, SavedConfig } from "./types";
 import { normalizePrivateKey } from "./utils/keyNormalizer";
 import {
   loadAllConfigs,
@@ -17,6 +19,16 @@ import {
 } from "./utils/configStore";
 import LoginForm from "./components/LoginForm";
 import Dashboard from "./components/Dashboard";
+
+// ── Helpers ──────────────────────────────────────────────────────────────
+
+/** Expand a leading `~` to the user's home directory. */
+async function expandHome(path: string): Promise<string> {
+  const match = /^~[/\\]?(.*)$/.exec(path);
+  if (!match) return path;
+  const home = await homeDir();
+  return match[1] ? join(home, match[1]) : home;
+}
 
 // ── App component ────────────────────────────────────────────────────────
 
@@ -101,6 +113,41 @@ export default function App() {
     setPrivateKey(config.privateKey);
     setMhoPath(config.mhoPath ?? "mho");
     setLabelEdited(true);
+  }, []);
+
+  // ── Pre-fill the form from pasted connection info ──────────
+  const handleAutoFill = useCallback(async (parsed: ParsedSshInput) => {
+    if (parsed.host) setHost(parsed.host);
+    if (parsed.port) setPort(parsed.port);
+    if (parsed.username) setUsername(parsed.username);
+    // The form no longer matches whatever config was selected.
+    setSelectedConfigId("");
+    setLabelEdited(false);
+    setError("");
+
+    // A private key takes precedence over a password.
+    if (parsed.privateKeyPath) {
+      setAuthMethod("privateKey");
+      setPassword("");
+      try {
+        const raw = await readTextFile(await expandHome(parsed.privateKeyPath));
+        const normalized = normalizePrivateKey(raw);
+        if (!normalized) {
+          setError(`Unrecognized private key format: ${parsed.privateKeyPath}`);
+          return;
+        }
+        setPrivateKey(normalized);
+      } catch (e) {
+        setError(`Failed to read ${parsed.privateKeyPath}: ${e}`);
+      }
+      return;
+    }
+
+    // sshpass / `user:password@host` style pastes switch to password auth.
+    if (parsed.password) {
+      setAuthMethod("password");
+      setPassword(parsed.password);
+    }
   }, []);
 
   // ── Save current form values ───────────────────────────────
@@ -257,6 +304,7 @@ export default function App() {
       onDeleteConfig: handleDeleteConfig,
       selectedConfigId,
       onSelectConfig: setSelectedConfigId,
+      onAutoFill: handleAutoFill,
     }),
     [
       label,
@@ -275,6 +323,7 @@ export default function App() {
       handleLoadConfig,
       handleSaveConfig,
       handleDeleteConfig,
+      handleAutoFill,
       selectedConfigId,
     ],
   );

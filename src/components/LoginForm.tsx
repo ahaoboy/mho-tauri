@@ -1,6 +1,6 @@
 // ── Mho Tauri login form component ──────────────────────────────────────
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, type ClipboardEvent } from "react";
 import {
   Box,
   Button,
@@ -26,9 +26,10 @@ import {
   Delete,
   Terminal,
 } from "@mui/icons-material";
-import type { AuthMethod, SavedConfig } from "../types";
+import type { AuthMethod, ParsedSshInput, SavedConfig } from "../types";
 import { normalizePrivateKey } from "../utils/keyNormalizer";
 import { generateConfigId } from "../utils/configStore";
+import { parseSshInput } from "../utils/sshParser";
 
 // ── Props ────────────────────────────────────────────────────────────────
 
@@ -66,6 +67,8 @@ interface LoginFormProps {
   selectedConfigId: string;
   /** Called when the dropdown selection changes. */
   onSelectConfig: (id: string) => void;
+  /** Called when a paste is recognized as connection info. */
+  onAutoFill: (parsed: ParsedSshInput) => void;
 }
 
 /** Return a fresh default config object with a unique id. */
@@ -105,6 +108,7 @@ export default function LoginForm({
   onDeleteConfig,
   selectedConfigId,
   onSelectConfig,
+  onAutoFill,
 }: LoginFormProps) {
   const theme = useTheme();
   const isNarrow = useMediaQuery(theme.breakpoints.down("sm"));
@@ -126,10 +130,29 @@ export default function LoginForm({
     }
   }, [privateKey, handleFieldChange]);
 
+  /**
+   * Smart paste: recognize pasted connection strings and hand the extracted
+   * fields to the parent. Fields marked `data-raw-paste` are left untouched.
+   */
+  const handlePaste = useCallback(
+    (e: ClipboardEvent<HTMLElement>) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("[data-raw-paste]")) return;
+
+      const parsed = parseSshInput(e.clipboardData.getData("text"));
+      if (!parsed?.host) return;
+
+      e.preventDefault();
+      onAutoFill(parsed);
+    },
+    [onAutoFill],
+  );
+
   const canConnect = host.trim() && username.trim();
 
   return (
     <Box
+      onPaste={handlePaste}
       sx={{
         display: "flex",
         minHeight: "100dvh",
@@ -281,6 +304,7 @@ export default function LoginForm({
               onChange={(e) => handleFieldChange("password", e.target.value)}
               placeholder="••••••••"
               slotProps={{
+                htmlInput: { "data-raw-paste": "" },
                 input: {
                   endAdornment: (
                     <InputAdornment position="end">
@@ -309,6 +333,7 @@ export default function LoginForm({
               placeholder="-----BEGIN OPENSSH PRIVATE KEY-----\n..."
               slotProps={{
                 htmlInput: {
+                  "data-raw-paste": "",
                   sx: { fontFamily: "monospace", fontSize: 13 },
                 },
               }}

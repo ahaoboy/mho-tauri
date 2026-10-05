@@ -29,7 +29,7 @@
       "identifier": "fs:scope",
       "allow": [
         {
-          "path": "**/*"
+          "path": "**"
         }
       ]
     }

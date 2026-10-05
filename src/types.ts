@@ -34,11 +34,22 @@ export interface SavedConfig {
 }
 
 /** Predefined mho commands available in the dashboard. */
-export interface MhoCommandDef {
-  id: string;
+export interface MhoCommandDef<T extends string = string> {
+  id: T;
   label: string;
   /** The mho subcommand and its arguments. */
   args: string[];
+}
+
+/** Connection details extracted from pasted text. */
+export interface ParsedSshInput {
+  username?: string;
+  /** Password found in `sshpass -p …` or `user:password@host` forms. */
+  password?: string;
+  host?: string;
+  port?: string;
+  /** Local path to a private key referenced by `ssh -i <path>`. */
+  privateKeyPath?: string;
 }
 
 /** Execution status of a command. */
