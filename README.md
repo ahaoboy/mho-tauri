@@ -32,8 +32,8 @@
 
 > Links point to the **[latest release](https://github.com/ahaoboy/mho-tauri/releases/latest)** assets.
 
-| Platform                 | Download                                                                                                                   |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| Platform                 | Download                                                                                                             |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------- |
 | 🪟 Windows (installer)   | [mho-tauri_windows_x64.exe](https://github.com/ahaoboy/mho-tauri/releases/latest/download/mho-tauri_windows_x64.exe) |
 | 🪟 Windows (MSI)         | [mho-tauri_x64_en-US.msi](https://github.com/ahaoboy/mho-tauri/releases/latest/download/mho-tauri_x64_en-US.msi)     |
 | 🍎 macOS (Intel)         | [mho-tauri_darwin_x64](https://github.com/ahaoboy/mho-tauri/releases/latest/download/mho-tauri_darwin_x64)           |
@@ -44,7 +44,7 @@
 | 🐧 Linux (deb)           | [mho-tauri_amd64.deb](https://github.com/ahaoboy/mho-tauri/releases/latest/download/mho-tauri_amd64.deb)             |
 | 🐧 Linux (AppImage)      | [mho-tauri_amd64.AppImage](https://github.com/ahaoboy/mho-tauri/releases/latest/download/mho-tauri_amd64.AppImage)   |
 | 🐧 Linux (rpm)           | [mho-tauri.x86_64.rpm](https://github.com/ahaoboy/mho-tauri/releases/latest/download/mho-tauri.x86_64.rpm)           |
-| 🤖 Android (APK)         | [app-universal-release.apk](https://github.com/ahaoboy/mho-tauri/releases/latest/download/app-universal-release.apk)     |
+| 🤖 Android (APK)         | [app-universal-release.apk](https://github.com/ahaoboy/mho-tauri/releases/latest/download/app-universal-release.apk) |
 
 ## Features
 
@@ -73,26 +73,25 @@
 
 - [Rust](https://rustup.rs/) (latest stable)
 - [Node.js](https://nodejs.org/) ≥ 18
-- [pnpm](https://pnpm.io/) (or npm)
 
 ### Install & Run
 
 ```bash
 # Install frontend dependencies
-pnpm install
+bun install
 
 # Run in development mode
-pnpm tauri dev
+bun tauri dev
 
 # Build for production
-pnpm tauri build
+bun tauri build
 ```
 
 ### Android
 
 ```bash
-pnpm tauri android init
-pnpm tauri android dev
+bun tauri android init
+bun tauri android dev
 ```
 
 ## License

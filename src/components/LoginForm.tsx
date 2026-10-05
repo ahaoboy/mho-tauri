@@ -158,15 +158,10 @@ export default function LoginForm({
             rel="noopener noreferrer"
             sx={{ display: "inline-block", cursor: "pointer" }}
           >
-            <Box
-              component="img"
-              src="/icon.png"
-              alt="Mho Tauri"
-              sx={{ width: 100, height: 100 }}
-            />
+            <Box component="img" src="/icon.png" alt="Mho Tauri" sx={{ width: 100, height: 100 }} />
           </Box>
           <Typography variant="h5" sx={{ fontWeight: 600 }} gutterBottom>
-            Mho
+            MHO
           </Typography>
         </Box>
 

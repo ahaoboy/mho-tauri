@@ -1,7 +1,8 @@
+bun.lock
 pnpm-lock.yaml
 Cargo.lock
 /target
-
+pnpm-workspace.yaml
 # Logs
 logs
 *.log

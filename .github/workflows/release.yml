@@ -48,9 +48,7 @@ jobs:
         with:
           node-version: lts/*
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 11
+      - uses: oven-sh/setup-bun@v2
 
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -105,12 +103,12 @@ jobs:
 
       - name: install frontend dependencies
         run: |
-          pnpm install
+          bun install
 
       # - name: tauri android init
       #   if: matrix.mobile == 'android'
       #   run: |
-      #     pnpm tauri android init
+      #     bun tauri android init
       # - name: diff
       #   if: matrix.mobile == 'android'
       #   run: |
