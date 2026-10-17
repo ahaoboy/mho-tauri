@@ -21,6 +21,7 @@ pub fn run() {
     info!("Starting Mho Tauri application");
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![execute_mho])
