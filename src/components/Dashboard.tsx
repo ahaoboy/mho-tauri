@@ -176,21 +176,23 @@ export default function Dashboard({
     }
   }, [commandStates]);
 
-  // ── Status chip for each command ──────────────────────────────
-  const renderStatusChip = (cmdId: string) => {
-    const state = commandStates[cmdId];
+  // ── Status indicator for the currently selected command ──────
+  // Only the active command's result is shown, so switching commands does
+  // not leave a stale success/failure badge on screen.
+  const selectedState = commandStates[selectedCmdId];
+  const renderStatusChip = (state: CommandState | undefined) => {
     if (!state || state.status === "idle") return null;
     if (state.status === "running") {
-      return <CircularProgress size={16} sx={{ ml: 1 }} />;
+      return <CircularProgress size={16} />;
     }
     if (state.status === "success") {
-      return <CheckCircle sx={{ fontSize: 16, ml: 1, color: "success.main" }} />;
+      return <CheckCircle sx={{ fontSize: 18, color: "success.main" }} />;
     }
-    return <ErrorIcon sx={{ fontSize: 16, ml: 1, color: "error.main" }} />;
+    return <ErrorIcon sx={{ fontSize: 18, color: "error.main" }} />;
   };
 
   // ── Check if selected command has output ─────────────────────
-  const hasOutput = !!commandStates[selectedCmdId]?.output || !!commandStates[selectedCmdId]?.error;
+  const hasOutput = !!selectedState?.output || !!selectedState?.error;
 
   return (
     <Box
@@ -222,12 +224,7 @@ export default function Dashboard({
             >
               {MHO_COMMANDS.map((cmd) => (
                 <MenuItem key={cmd.id} value={cmd.id} dense>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: "100%" }}>
-                    <Typography variant="body2" sx={{ flex: 1 }}>
-                      {cmd.label}
-                    </Typography>
-                    {renderStatusChip(cmd.id)}
-                  </Box>
+                  {cmd.label}
                 </MenuItem>
               ))}
             </Select>
@@ -252,6 +249,17 @@ export default function Dashboard({
           >
             Run
           </Button>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 20,
+              flexShrink: 0,
+            }}
+          >
+            {renderStatusChip(selectedState)}
+          </Box>
           <Typography
             variant="body2"
             sx={{
@@ -264,6 +272,10 @@ export default function Dashboard({
               borderRadius: 1,
               border: 1,
               borderColor: "divider",
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
             }}
           >
             mho {selectedCmd.args.join(" ")}
@@ -327,7 +339,7 @@ export default function Dashboard({
           }}
         >
           {(() => {
-            const state = commandStates[selectedCmdId];
+            const state = selectedState;
             if (!state || (state.status === "idle" && !state.output && !state.error)) {
               return (
                 <Typography component="div" sx={{ color: "#808080", fontFamily: "inherit" }}>
