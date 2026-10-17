@@ -20,10 +20,17 @@ pub fn run() {
 
     info!("Starting Mho Tauri application");
 
-    tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}))
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_fs::init());
+
+    #[cfg(target_os = "windows")]
+    let builder = builder
+        // .plugin(tauri_plugin_media::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}));
+
+    builder
         .invoke_handler(tauri::generate_handler![execute_mho])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
