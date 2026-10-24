@@ -66,7 +66,7 @@ export const MHO_COMMANDS = [
   { id: "status", label: "Status", args: ["status"] },
   { id: "start", label: "Start", args: ["start", "-f"] },
   { id: "stop", label: "Stop", args: ["stop", "-f"] },
-  { id: "update", label: "Update", args: ["update-url", "-f"] },
+  { id: "update", label: "Update", args: ["config", "update", "-f"] },
   { id: "config", label: "Config", args: ["config", "url"] },
   { id: "upgrade", label: "Upgrade", args: ["upgrade", "mho-assets"] },
 ] as const satisfies readonly MhoCommandDef[];
