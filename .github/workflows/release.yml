@@ -132,7 +132,7 @@ jobs:
       #   run: |
       #     cargo install -q cross --git https://github.com/cross-rs/cross
       - name: Build
-        uses: tauri-apps/tauri-action@1
+        uses: tauri-apps/tauri-action@v1
         with:
           tagName: v__VERSION__
           releaseName: "mho-tauri v__VERSION__"
