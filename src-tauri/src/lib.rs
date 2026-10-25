@@ -3,7 +3,7 @@
 mod commands;
 mod error;
 mod ssh;
-use commands::execute_mho;
+use commands::{SshCancel, cancel_ssh, execute_mho};
 use tracing::info;
 
 // ── Entry point ───────────────────────────────────────────────────────────
@@ -21,6 +21,7 @@ pub fn run() {
     info!("Starting Mho Tauri application");
 
     let builder = tauri::Builder::default()
+        .manage(SshCancel::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init());
 
@@ -31,7 +32,7 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}));
 
     builder
-        .invoke_handler(tauri::generate_handler![execute_mho])
+        .invoke_handler(tauri::generate_handler![execute_mho, cancel_ssh])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

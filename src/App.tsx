@@ -208,7 +208,7 @@ export default function App() {
 
   // ── Connect / Login ────────────────────────────────────────
   const handleConnect = useCallback(async () => {
-    if (!host || !username) return;
+    if (!host || !username || connecting) return;
 
     setConnecting(true);
     setError("");
@@ -220,6 +220,7 @@ export default function App() {
         sshConfig,
         mhoPath: "echo",
         args: ["connected"],
+        timeoutSecs: 20,
       });
 
       setLoggedIn(true);
@@ -245,7 +246,16 @@ export default function App() {
       setSelectedConfigId(config.id);
     } catch (e) {
       console.error("Connection failed:", e);
-      setError(String(e));
+      const message = String(e);
+      if (/cancelled/i.test(message)) {
+        setError("");
+      } else {
+        const hint =
+          isMobile() && /timed out/i.test(message)
+            ? '\n\nAndroid 17+: allow the "Nearby devices" (local network) permission for MHO, then retry.'
+            : "";
+        setError(message + hint);
+      }
     } finally {
       setConnecting(false);
     }
@@ -257,12 +267,22 @@ export default function App() {
     password,
     privateKey,
     mhoPath,
+    connecting,
     buildSshConfig,
     savedConfigs,
     selectedConfigId,
     label,
     reloadConfigs,
   ]);
+
+  // ── Cancel an in-flight connection attempt ─────────────────
+  const handleCancelConnect = useCallback(async () => {
+    try {
+      await invoke("cancel_ssh");
+    } catch (e) {
+      console.error("Cancel failed:", e);
+    }
+  }, []);
 
   // ── Disconnect / Logout ────────────────────────────────────
   const handleDisconnect = useCallback(() => {
@@ -299,6 +319,7 @@ export default function App() {
       onChange: handleFieldChange,
       onAuthMethodChange: setAuthMethod,
       onConnect: handleConnect,
+      onCancel: handleCancelConnect,
       onLoadConfig: handleLoadConfig,
       onSaveConfig: handleSaveConfig,
       onDeleteConfig: handleDeleteConfig,
@@ -320,6 +341,7 @@ export default function App() {
       savedConfigs,
       handleFieldChange,
       handleConnect,
+      handleCancelConnect,
       handleLoadConfig,
       handleSaveConfig,
       handleDeleteConfig,

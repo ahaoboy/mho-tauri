@@ -4,6 +4,7 @@ import { useState, useCallback, type ClipboardEvent } from "react";
 import {
   Box,
   Button,
+  CircularProgress,
   FormControl,
   FormHelperText,
   IconButton,
@@ -57,6 +58,8 @@ interface LoginFormProps {
   onAuthMethodChange: (method: AuthMethod) => void;
   /** Called when the user clicks Connect. */
   onConnect: () => void;
+  /** Called when the user cancels an in-flight connection attempt. */
+  onCancel: () => void;
   /** Called to load a saved config. */
   onLoadConfig: (config: SavedConfig) => void;
   /** Called to save current form as a new config. */
@@ -103,6 +106,7 @@ export default function LoginForm({
   onChange,
   onAuthMethodChange,
   onConnect,
+  onCancel,
   onLoadConfig,
   onSaveConfig,
   onDeleteConfig,
@@ -232,7 +236,7 @@ export default function LoginForm({
           component="form"
           onSubmit={(e) => {
             e.preventDefault();
-            onConnect();
+            if (!connecting) onConnect();
           }}
           sx={{ display: "flex", flexDirection: "column", gap: 2 }}
         >
@@ -360,28 +364,39 @@ export default function LoginForm({
 
           {/* Error */}
           {error && (
-            <FormHelperText error sx={{ mx: 0 }}>
+            <FormHelperText error sx={{ mx: 0, whiteSpace: "pre-line" }}>
               {error}
             </FormHelperText>
           )}
 
           {/* Action buttons */}
           <Box sx={{ display: "flex", gap: 1 }}>
-            <Button
-              type="submit"
-              variant="contained"
-              loading={connecting}
-              loadingPosition="start"
-              disabled={!canConnect}
-              sx={{ flex: 2 }}
-            >
-              {connecting ? "Connecting…" : "Connect"}
-            </Button>
+            {connecting ? (
+              <Button
+                type="button"
+                variant="outlined"
+                color="error"
+                onClick={onCancel}
+                startIcon={<CircularProgress size={16} color="inherit" />}
+                sx={{ flex: 2 }}
+              >
+                Cancel
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={!canConnect}
+                sx={{ flex: 2 }}
+              >
+                Connect
+              </Button>
+            )}
             <Button
               variant="contained"
               color="primary"
               onClick={onSaveConfig}
-              disabled={!canConnect}
+              disabled={!canConnect || connecting}
               title="Save current config"
               sx={{ minWidth: 40, px: 1 }}
             >
@@ -397,6 +412,7 @@ export default function LoginForm({
                   onDeleteConfig(id);
                   onLoadConfig(getDefaultConfig());
                 }}
+                disabled={connecting}
                 title="Delete selected config"
                 sx={{ minWidth: 40, px: 1 }}
               >

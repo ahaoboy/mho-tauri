@@ -130,6 +130,7 @@ export default function Dashboard({
           sshConfig,
           mhoPath,
           args,
+          timeoutSecs: 120,
         });
 
         setCommandStates((prev) => ({
@@ -142,6 +143,13 @@ export default function Dashboard({
         }));
       } catch (e) {
         const errMsg = String(e);
+        if (/cancelled/i.test(errMsg)) {
+          setCommandStates((prev) => ({
+            ...prev,
+            [cmdId]: { status: "idle", output: null, error: null },
+          }));
+          return;
+        }
         setCommandStates((prev) => ({
           ...prev,
           [cmdId]: {
@@ -154,6 +162,15 @@ export default function Dashboard({
     },
     [host, port, username, mhoPath, sshConfig],
   );
+
+  // ── Cancel the in-flight command ─────────────────────────────
+  const handleCancelCommand = useCallback(async () => {
+    try {
+      await invoke("cancel_ssh");
+    } catch (e) {
+      console.error("Cancel failed:", e);
+    }
+  }, []);
 
   // ── Copy output to clipboard ──────────────────────────────────
   const handleCopyOutput = useCallback(async () => {
@@ -229,26 +246,35 @@ export default function Dashboard({
               ))}
             </Select>
           </FormControl>
-          <Button
-            variant="contained"
-            size="small"
-            onClick={() => {
-              if (isUrlCommand(selectedCmd.id) && urlInput.trim()) {
-                executeCommand(selectedCmd, urlInput.trim());
-                setUrlInput("");
-              } else if (!isUrlCommand(selectedCmd.id)) {
-                executeCommand(selectedCmd);
-              }
-            }}
-            disabled={
-              commandStates[selectedCmdId]?.status === "running" ||
-              (isUrlCommand(selectedCmd.id) && !urlInput.trim())
-            }
-            startIcon={CMD_ICONS[selectedCmdId] ?? <Settings />}
-            sx={{ textTransform: "none" }}
-          >
-            Run
-          </Button>
+          {commandStates[selectedCmdId]?.status === "running" ? (
+            <Button
+              variant="outlined"
+              size="small"
+              color="error"
+              onClick={handleCancelCommand}
+              sx={{ textTransform: "none" }}
+            >
+              Cancel
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              size="small"
+              onClick={() => {
+                if (isUrlCommand(selectedCmd.id) && urlInput.trim()) {
+                  executeCommand(selectedCmd, urlInput.trim());
+                  setUrlInput("");
+                } else if (!isUrlCommand(selectedCmd.id)) {
+                  executeCommand(selectedCmd);
+                }
+              }}
+              disabled={isUrlCommand(selectedCmd.id) && !urlInput.trim()}
+              startIcon={CMD_ICONS[selectedCmdId] ?? <Settings />}
+              sx={{ textTransform: "none" }}
+            >
+              Run
+            </Button>
+          )}
           <Box
             sx={{
               display: "flex",
