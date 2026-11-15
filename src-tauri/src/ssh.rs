@@ -9,7 +9,7 @@ pub use sssh::Error as SshError;
 /// command + output collection).
 const DEFAULT_TIMEOUT_SECS: u64 = 30;
 /// Upper bound accepted from the frontend, to avoid absurd values.
-const MAX_TIMEOUT_SECS: u64 = 600;
+const MAX_TIMEOUT_SECS: u64 = 1800;
 
 // ── Tauri-compatible types ──────────────────────────────────────────────
 
@@ -77,6 +77,14 @@ pub(crate) async fn run_remote_command(
     Ok(CommandOutput {
         stdout: output.stdout,
         stderr: output.stderr,
-        exit_code: output.exit_code.unwrap_or(0) as i32,
+        // A missing exit status must not be reported as success; keep the
+        // legacy behaviour (0) but make it visible for diagnosis.
+        exit_code: match output.exit_code {
+            Some(code) => code as i32,
+            None => {
+                tracing::warn!("remote command finished without an exit status");
+                0
+            }
+        },
     })
 }

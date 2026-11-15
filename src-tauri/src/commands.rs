@@ -1,29 +1,32 @@
 // ── Tauri commands for the Mho Tauri wrapper ────────────────────────────
 
 use crate::error::AppError;
+use crate::installer::{self, InstallReport, RemoteInfo};
 use crate::ssh::{CommandOutput, ConnectParams, SshError, run_remote_command};
+use easy_install::DirStatus;
+use serde::Serialize;
 use tokio::sync::watch;
 
 // ── In-flight SSH cancellation ────────────────────────────────────────
 
-/// Shared cancellation signal for in-flight SSH operations.
+/// Cancellation token shared by every in-flight SSH operation.
 ///
-/// Every `execute_mho` call records the current generation; `cancel_ssh`
-/// bumps it, which wakes all operations started before the bump. Dropping
-/// the `run_remote_command` future closes the TCP socket immediately.
+/// Each operation records the current generation; `cancel_ssh` bumps it,
+/// which wakes everything started before the bump. Dropping the pending
+/// future closes its TCP socket immediately.
 #[derive(Clone)]
-pub(crate) struct SshCancel {
+pub(crate) struct CancelToken {
     generation: watch::Sender<u64>,
 }
 
-impl Default for SshCancel {
+impl Default for CancelToken {
     fn default() -> Self {
         let (generation, _) = watch::channel(0);
         Self { generation }
     }
 }
 
-impl SshCancel {
+impl CancelToken {
     fn subscribe(&self) -> (u64, watch::Receiver<u64>) {
         let rx = self.generation.subscribe();
         let generation = *rx.borrow();
@@ -60,7 +63,7 @@ async fn wait_cancelled(generation: u64, mut rx: watch::Receiver<u64>) {
 /// `timeout_secs` bounds the whole operation; defaults to 30 seconds.
 #[tauri::command]
 pub(crate) async fn execute_mho(
-    state: tauri::State<'_, SshCancel>,
+    state: tauri::State<'_, CancelToken>,
     ssh_config: ConnectParams,
     mho_path: String,
     args: Vec<String>,
@@ -90,8 +93,95 @@ pub(crate) async fn execute_mho(
 /// or command is running. The pending SSH future is dropped, which closes the
 /// underlying TCP socket.
 #[tauri::command]
-pub(crate) fn cancel_ssh(state: tauri::State<'_, SshCancel>) {
+pub(crate) fn cancel_ssh(state: tauri::State<'_, CancelToken>) {
     state.cancel_all();
+}
+
+// ── Remote installation ───────────────────────────────────────────────
+
+/// Options for the install page.
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct InstallOptions {
+    /// Suggested target for the host running this build when it has a
+    /// published bundle, otherwise the first published one.
+    pub target: String,
+    pub targets: Vec<&'static str>,
+    pub proxies: Vec<&'static str>,
+}
+
+#[tauri::command]
+pub(crate) fn install_options() -> InstallOptions {
+    let local = installer::default_target();
+    let target = if installer::TARGETS.contains(&local.as_str()) {
+        local
+    } else {
+        installer::TARGETS[0].to_string()
+    };
+    InstallOptions {
+        target,
+        targets: installer::TARGETS.to_vec(),
+        proxies: installer::PROXIES.to_vec(),
+    }
+}
+
+/// Inspect the remote host: platform, mho availability and suggested paths.
+#[tauri::command]
+pub(crate) async fn probe_remote(
+    state: tauri::State<'_, CancelToken>,
+    ssh_config: ConnectParams,
+    mho_path: String,
+) -> Result<RemoteInfo, String> {
+    let (generation, cancel_rx) = state.subscribe();
+
+    tokio::select! {
+        result = installer::probe(&ssh_config, &mho_path) => result,
+        _ = wait_cancelled(generation, cancel_rx) => {
+            Err("Connection cancelled".to_string())
+        }
+    }
+}
+
+/// Check that a remote directory is writable and has free space.
+#[tauri::command]
+pub(crate) async fn check_dir(
+    state: tauri::State<'_, CancelToken>,
+    ssh_config: ConnectParams,
+    dir: String,
+) -> Result<DirStatus, String> {
+    let (generation, cancel_rx) = state.subscribe();
+
+    tokio::select! {
+        result = installer::check_dir(&ssh_config, &dir) => result,
+        _ = wait_cancelled(generation, cancel_rx) => {
+            Err("Connection cancelled".to_string())
+        }
+    }
+}
+
+/// Install the mho bundle on the remote host.
+#[tauri::command]
+pub(crate) async fn install_mho(
+    state: tauri::State<'_, CancelToken>,
+    ssh_config: ConnectParams,
+    install_dir: String,
+    target: String,
+    proxy: String,
+    tag: Option<String>,
+) -> Result<InstallReport, String> {
+    let (generation, cancel_rx) = state.subscribe();
+
+    tokio::select! {
+        result = installer::install(
+            &ssh_config,
+            &install_dir,
+            &target,
+            &proxy,
+            tag.as_deref(),
+        ) => result,
+        _ = wait_cancelled(generation, cancel_rx) => {
+            Err("Installation cancelled".to_string())
+        }
+    }
 }
 
 #[cfg(test)]
@@ -101,7 +191,7 @@ mod tests {
 
     #[tokio::test]
     async fn cancel_wakes_in_flight_waiter() {
-        let cancel = SshCancel::default();
+        let cancel = CancelToken::default();
         let (generation, rx) = cancel.subscribe();
         let waiter = tokio::spawn(wait_cancelled(generation, rx));
 
@@ -115,7 +205,7 @@ mod tests {
 
     #[tokio::test]
     async fn subscription_after_cancel_starts_fresh() {
-        let cancel = SshCancel::default();
+        let cancel = CancelToken::default();
         let before = *cancel.generation.borrow();
         cancel.cancel_all();
         assert_eq!(*cancel.generation.borrow(), before.wrapping_add(1));

@@ -12,6 +12,21 @@ tauri-plugin-clipboard-manager = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sssh = { git = "https://github.com/ahaoboy/sssh", default-features = false, version = "0.1" }
+# Remote installation (`ei`): download, extract and deploy over SSH.
+# NOTE: push the `easy-install` repo before building, the git dependency is
+# resolved from its main branch.
+easy-install = { git = "https://github.com/easy-install/easy-install", version = "1", default-features = false, features = [
+  "tar-gz",
+  "tar-xz",
+  "zip",
+  "ssh",
+] }
+github-proxy = { version = "0.1", git = "https://github.com/ahaoboy/github-proxy", default-features = false, features = [
+  "serde",
+] }
+guess-target = { version = "0.1", git = "https://github.com/ahaoboy/guess-target", default-features = false, features = [
+  "serde",
+] }
 tokio = { version = "1", features = ["full"] }
 thiserror = "2"
 tracing = "0.1"
@@ -19,3 +34,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # tauri-plugin-media = { version = "0.1" }
 tauri-plugin-updater = { version = "2" }
 tauri-plugin-single-instance = { version = "2" }
+
+# For local development against a checkout of easy-install, uncomment:
+# [patch."https://github.com/easy-install/easy-install"]
+# easy-install = { path = "../easy-install" }

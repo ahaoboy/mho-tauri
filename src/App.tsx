@@ -7,7 +7,14 @@ import { readTextFile } from "@tauri-apps/plugin-fs";
 import { CssBaseline } from "@mui/material";
 import { useAutoOrientation } from "./hooks/useAutoOrientation";
 import { isMobile } from "./utils/platform";
-import type { AuthMethod, ParsedSshInput, SshConfig, SavedConfig } from "./types";
+import type {
+  AuthMethod,
+  ParsedSshInput,
+  RemoteInfo,
+  SshConfig,
+  SavedConfig,
+  WorkspaceTab,
+} from "./types";
 import { normalizePrivateKey } from "./utils/keyNormalizer";
 import {
   loadAllConfigs,
@@ -18,7 +25,7 @@ import {
   setLastUsedConfigId,
 } from "./utils/configStore";
 import LoginForm from "./components/LoginForm";
-import Dashboard from "./components/Dashboard";
+import Workspace from "./components/Workspace";
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -49,6 +56,12 @@ export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState("");
+
+  // ── Workspace state (tabs + remote host info) ──────────────
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>("terminal");
+  const [remote, setRemote] = useState<RemoteInfo | null>(null);
+  const [probing, setProbing] = useState(false);
+  const [probeError, setProbeError] = useState("");
 
   // ── Config management state ────────────────────────────────
   const [savedConfigs, setSavedConfigs] = useState<SavedConfig[]>([]);
@@ -206,6 +219,87 @@ export default function App() {
     return config;
   }, [host, port, username, authMethod, privateKey, password]);
 
+  // ── Probe the remote host for mho availability ─────────────
+  const refreshProbe = useCallback(
+    async (options?: { path?: string; selectTab?: boolean }) => {
+      const target = (options?.path ?? mhoPath).trim();
+      if (!target) return;
+      setProbing(true);
+      setProbeError("");
+      try {
+        const result = await invoke<RemoteInfo>("probe_remote", {
+          sshConfig: buildSshConfig(),
+          mhoPath: target,
+        });
+        setRemote(result);
+        // Only steer the initial landing tab; a manual refresh must not
+        // yank the user away from the install page.
+        if (options?.selectTab) {
+          setActiveTab(result.mho_exists ? "terminal" : "install");
+        }
+      } catch (e) {
+        console.error("Remote probe failed:", e);
+        setProbeError(String(e));
+      } finally {
+        setProbing(false);
+      }
+    },
+    [buildSshConfig, mhoPath],
+  );
+
+  // Probe whenever we log in (or when the mho path changes).
+  useEffect(() => {
+    if (!loggedIn) {
+      setRemote(null);
+      setProbeError("");
+      return;
+    }
+    void refreshProbe({ selectTab: true });
+  }, [loggedIn, refreshProbe]);
+
+  /** Called by the install page after a successful remote installation. */
+  const handleInstalled = useCallback(
+    (installedPath: string) => {
+      setMhoPath(installedPath);
+
+      // Persist the new binary path so a restart does not fall back to the
+      // install page.
+      const existing =
+        savedConfigs.find((c) => c.id === selectedConfigId) ??
+        savedConfigs.find((c) => c.host === host && c.username === username);
+      const config: SavedConfig = {
+        id: existing?.id ?? generateConfigId(),
+        label: label || existing?.label || `${username}@${host}`,
+        host,
+        port,
+        username,
+        authMethod,
+        password,
+        privateKey,
+        mhoPath: installedPath,
+      };
+      saveConfig(config);
+      setSelectedConfigId(config.id);
+      setLabelEdited(true);
+      reloadConfigs();
+
+      // `mhoPath` changed, which re-runs the probe effect; no manual refresh
+      // needed (and the effect also switches to the Terminal tab).
+    },
+    [
+      selectedConfigId,
+      savedConfigs,
+      label,
+      host,
+      port,
+      username,
+      authMethod,
+      password,
+      privateKey,
+      reloadConfigs,
+    ],
+  );
+
   // ── Connect / Login ────────────────────────────────────────
   const handleConnect = useCallback(async () => {
     if (!host || !username || connecting) return;
@@ -288,6 +382,9 @@ export default function App() {
   const handleDisconnect = useCallback(() => {
     setLoggedIn(false);
     setError("");
+    setRemote(null);
+    setProbeError("");
+    setActiveTab("terminal");
   }, []);
 
   // ── Disable right-click context menu ──────────────────────
@@ -357,13 +454,20 @@ export default function App() {
     <>
       <CssBaseline />
       {loggedIn ? (
-        <Dashboard
+        <Workspace
           username={username}
           host={host}
           port={port}
           mhoPath={mhoPath}
           sshConfig={sshConfig}
           onDisconnect={handleDisconnect}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          remote={remote}
+          probing={probing}
+          probeError={probeError}
+          onRefresh={() => void refreshProbe()}
+          onInstalled={handleInstalled}
         />
       ) : (
         <LoginForm {...loginFormProps} />

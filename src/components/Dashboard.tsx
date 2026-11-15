@@ -29,7 +29,6 @@ import {
   CloudUpload,
   Error as ErrorIcon,
 } from "@mui/icons-material";
-import DashboardHeader from "./DashboardHeader";
 import {
   type CommandOutput,
   type MhoCommandDef,
@@ -94,19 +93,11 @@ interface DashboardProps {
   port: string;
   mhoPath: string;
   sshConfig: SshConfig;
-  onDisconnect: () => void;
 }
 
 // ── Component ────────────────────────────────────────────────────────────
 
-export default function Dashboard({
-  username,
-  host,
-  port,
-  mhoPath,
-  sshConfig,
-  onDisconnect,
-}: DashboardProps) {
+export default function Dashboard({ username, host, port, mhoPath, sshConfig }: DashboardProps) {
   const [selectedCmdId, setSelectedCmdId] = useState<MhoCommandId>(DEFAULT_COMMAND_ID);
   const [urlInput, setUrlInput] = useState("");
   const [commandStates, setCommandStates] = useState<Record<string, CommandState>>({});
@@ -216,19 +207,10 @@ export default function Dashboard({
       sx={{
         display: "flex",
         flexDirection: "column",
-        height: "100dvh",
-        pt: "var(--safe-area-top)",
-        pb: "var(--safe-area-bottom)",
+        flex: 1,
+        minHeight: 0,
       }}
     >
-      <DashboardHeader
-        username={username}
-        host={host}
-        port={port}
-        mhoPath={mhoPath}
-        onDisconnect={onDisconnect}
-      />
-
       {/* ── Command selector ────────────────────────── */}
       <Box sx={{ px: 2, pt: 2, pb: 1 }}>
         <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>

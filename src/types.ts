@@ -84,3 +84,62 @@ const URL_COMMANDS: ReadonlySet<MhoCommandId> = new Set(["config"]);
 export function isUrlCommand(id: MhoCommandId): boolean {
   return URL_COMMANDS.has(id);
 }
+
+// ── Workspace tabs ───────────────────────────────────────────────────────
+
+/** Tabs available after connecting. */
+export type WorkspaceTab = "terminal" | "install";
+
+// ── Remote installation ──────────────────────────────────────────────────
+
+/** Information reported by the remote host probe. */
+export interface RemoteInfo {
+  os: string;
+  arch: string;
+  /** `musl` or `gnu` (Linux only). */
+  libc: string;
+  home: string;
+  user: string;
+  mho_path: string;
+  /** Rust target triple detected on the remote host. */
+  target: string;
+  /** Whether a bundle is published for `target`. */
+  target_supported: boolean;
+  mho_exists: boolean;
+  mho_resolved: string | null;
+  mho_version: string | null;
+  /** Suggested installation directory (folder of the configured binary). */
+  install_dir: string;
+}
+
+/** State of a directory on the remote host. */
+export interface DirStatus {
+  dir: string;
+  exists: boolean;
+  writable: boolean;
+  /** The directory is missing, but its parent is writable. */
+  creatable: boolean;
+  total_bytes: number;
+  available_bytes: number;
+  error: string | null;
+}
+
+/** Options exposed by the backend for the install page. */
+export interface InstallOptions {
+  /** Suggested target triple for this host. */
+  target: string;
+  targets: string[];
+  proxies: string[];
+}
+
+/** Result of a successful install. */
+export interface InstallReport {
+  /** Absolute path of the installed binary on the remote host. */
+  path: string;
+  stdout: string;
+  stderr: string;
+  exit_code: number;
+}
+
+/** Download proxy services supported by `github-proxy`. */
+export type InstallProxy = "github" | "gh-proxy" | "xget" | "jsdelivr" | "statically";

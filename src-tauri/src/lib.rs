@@ -2,8 +2,11 @@
 
 mod commands;
 mod error;
+mod installer;
 mod ssh;
-use commands::{SshCancel, cancel_ssh, execute_mho};
+use commands::{
+    CancelToken, cancel_ssh, check_dir, execute_mho, install_mho, install_options, probe_remote,
+};
 use tracing::info;
 
 // ── Entry point ───────────────────────────────────────────────────────────
@@ -21,9 +24,13 @@ pub fn run() {
     info!("Starting Mho Tauri application");
 
     let builder = tauri::Builder::default()
-        .manage(SshCancel::default())
+        .manage(CancelToken::default())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_fs::init());
+        .plugin(tauri_plugin_fs::init())
+        // Both plugins are granted in `capabilities/*.json`; register them or
+        // the frontend calls (`platform()`, clipboard) fail at runtime.
+        .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_clipboard_manager::init());
 
     #[cfg(target_os = "windows")]
     let builder = builder
@@ -32,7 +39,14 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}));
 
     builder
-        .invoke_handler(tauri::generate_handler![execute_mho, cancel_ssh])
+        .invoke_handler(tauri::generate_handler![
+            execute_mho,
+            cancel_ssh,
+            install_options,
+            probe_remote,
+            check_dir,
+            install_mho
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
