@@ -19,7 +19,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { CheckCircle, ContentCopy, Download, Refresh, Storage } from "@mui/icons-material";
+import { CheckCircle, Download, Refresh, Storage } from "@mui/icons-material";
 import type {
   DirStatus,
   InstallOptions,
@@ -50,17 +50,17 @@ const FALLBACK_TARGETS = [
   "x86_64-pc-windows-gnu",
 ];
 
-/** Human readable byte size. */
+/** Human readable byte size (`0` is a real value, not "unknown"). */
 function formatBytes(bytes: number): string {
-  if (!bytes || bytes <= 0) return "unknown";
   const units = ["B", "KB", "MB", "GB", "TB"];
-  let value = bytes;
+  let value = Math.max(0, bytes);
   let unit = 0;
   while (value >= 1024 && unit < units.length - 1) {
     value /= 1024;
     unit += 1;
   }
-  return `${value >= 10 || unit === 0 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`;
+  const text = value >= 10 || unit === 0 ? Math.round(value) : value.toFixed(1);
+  return `${text} ${units[unit]}`;
 }
 
 // ── Props ────────────────────────────────────────────────────────────────
@@ -100,7 +100,6 @@ export default function InstallPage({
   const [report, setReport] = useState<InstallReport | null>(null);
   const [installError, setInstallError] = useState("");
 
-  const outputRef = useRef<HTMLDivElement>(null);
   /** Guards against re-seeding the form (and clobbering user edits). */
   const seededFor = useRef("");
 
@@ -173,13 +172,6 @@ export default function InstallPage({
     if (!target && options?.target) setTarget(options.target);
   }, [options?.target, target]);
 
-  // ── Auto-scroll the install log ───────────────────────────────
-  useEffect(() => {
-    if (outputRef.current) {
-      outputRef.current.scrollTop = outputRef.current.scrollHeight;
-    }
-  }, [report]);
-
   // ── Install ───────────────────────────────────────────────────
   const handleInstall = useCallback(async () => {
     const dirValue = dir.trim();
@@ -197,7 +189,7 @@ export default function InstallPage({
         proxy,
       });
       setReport(result);
-      if (result.exit_code === 0) onInstalled(result.path);
+      onInstalled(result.path);
     } catch (e) {
       setInstallError(String(e));
     } finally {
@@ -337,8 +329,22 @@ export default function InstallPage({
               <Chip
                 size="small"
                 variant="outlined"
-                label={`free ${formatBytes(dirStatus.available_bytes)} / ${formatBytes(dirStatus.total_bytes)}`}
+                color={
+                  dirStatus.space_known && dirStatus.available_bytes === 0 ? "error" : "default"
+                }
+                label={
+                  dirStatus.space_known
+                    ? `free ${formatBytes(dirStatus.available_bytes)} / ${formatBytes(dirStatus.total_bytes)}`
+                    : "free space unknown"
+                }
               />
+              {dirStatus.space_known &&
+                dirStatus.space_from &&
+                dirStatus.space_from !== dirStatus.dir && (
+                  <Typography variant="caption" color="text.secondary">
+                    measured on {dirStatus.space_from} (target does not exist yet)
+                  </Typography>
+                )}
               <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>
                 {dirStatus.dir}
               </Typography>
@@ -425,7 +431,7 @@ export default function InstallPage({
           )}
         </Stack>
 
-        {report && report.exit_code === 0 && !installing && (
+        {report && !installing && (
           <Alert severity="success" icon={<CheckCircle fontSize="inherit" />}>
             Installed. Terminal commands will use{" "}
             <Box component="span" sx={{ fontFamily: "monospace" }}>
@@ -436,63 +442,6 @@ export default function InstallPage({
         )}
 
         {installError && <Alert severity="error">{installError}</Alert>}
-
-        {/* Install log */}
-        {report && (
-          <Box>
-            <Stack direction="row" sx={{ alignItems: "center", mb: 0.5 }}>
-              <Typography variant="overline" color="text.secondary" sx={{ flex: 1 }}>
-                Install log
-              </Typography>
-              <Button
-                size="small"
-                startIcon={<ContentCopy sx={{ fontSize: 14 }} />}
-                sx={{ textTransform: "none" }}
-                onClick={() =>
-                  void navigator.clipboard.writeText(
-                    [report.stdout, report.stderr].filter(Boolean).join("\n"),
-                  )
-                }
-              >
-                Copy
-              </Button>
-            </Stack>
-            <Paper
-              ref={outputRef}
-              elevation={3}
-              sx={{
-                p: 2,
-                maxHeight: 260,
-                overflow: "auto",
-                bgcolor: "#1e1e1e",
-                color: "#d4d4d4",
-                fontFamily: "'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace",
-                fontSize: 12,
-                lineHeight: 1.6,
-                borderRadius: 1,
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-all",
-              }}
-            >
-              {report.stdout.trimEnd() || "(no output)"}
-              {report.stderr.trimEnd() && (
-                <Box component="div" sx={{ color: "#f48771", mt: 0.5 }}>
-                  {report.stderr.trimEnd()}
-                </Box>
-              )}
-              <Box
-                component="div"
-                sx={{
-                  color: report.exit_code === 0 ? "#6a9955" : "#f44747",
-                  fontSize: 11,
-                  mt: 0.5,
-                }}
-              >
-                [exit: {report.exit_code}]
-              </Box>
-            </Paper>
-          </Box>
-        )}
       </Stack>
     </Box>
   );

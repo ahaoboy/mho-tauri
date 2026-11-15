@@ -121,6 +121,10 @@ export interface DirStatus {
   creatable: boolean;
   total_bytes: number;
   available_bytes: number;
+  /** Whether `available_bytes` is a real measurement (0 can mean "full"). */
+  space_known: boolean;
+  /** Path the space figures came from (the nearest existing ancestor). */
+  space_from: string;
   error: string | null;
 }
 
@@ -136,9 +140,6 @@ export interface InstallOptions {
 export interface InstallReport {
   /** Absolute path of the installed binary on the remote host. */
   path: string;
-  stdout: string;
-  stderr: string;
-  exit_code: number;
 }
 
 /** Download proxy services supported by `github-proxy`. */

@@ -13,6 +13,7 @@ use github_proxy::Proxy;
 use guess_target::Target;
 use serde::Serialize;
 use std::str::FromStr;
+use std::time::Duration;
 
 use crate::ssh::ConnectParams;
 
@@ -26,6 +27,13 @@ const BUNDLE_REPO: &str = "ahaoboy/mho-assets";
 /// Default release tag (nightly builds).
 const BUNDLE_TAG: &str = "nightly";
 const BINARY: &str = "mho";
+
+/// Warm-up budget for the whole install (download + upload to the remote).
+const INSTALL_TIMEOUT_SECS: u64 = 900;
+
+/// Space that must be free before starting; the bundle is ~20 MB and the
+/// extracted binary a few MB more.
+const BUNDLE_MIN_BYTES: u64 = 24 * 1024 * 1024;
 
 /// Targets published as `mho-full-<target>.tar.xz` in the bundle release.
 ///
@@ -75,9 +83,6 @@ pub(crate) struct RemoteInfo {
 pub(crate) struct InstallReport {
     /// Absolute path of the installed binary on the remote host.
     pub path: String,
-    pub stdout: String,
-    pub stderr: String,
-    pub exit_code: i32,
 }
 
 // ── Connection helpers ──────────────────────────────────────────────────
@@ -106,6 +111,29 @@ async fn version_of(client: &SshClient, path: &str) -> Option<String> {
         .ok()?;
     let version = output.stdout.trim().to_string();
     (!version.is_empty()).then_some(version)
+}
+
+/// Directories worth suggesting when the chosen one has no room.
+///
+/// Ordered roughly by how likely they are to exist and persist on a router:
+/// `/jffs` and `/data` survive reboots, `/tmp` is RAM-backed, the rest are
+/// common distro layouts.
+const SPACE_CANDIDATES: &[&str] = &["/jffs", "/data", "/opt", "/var", "/mnt", "/tmp"];
+
+/// Human readable byte size (0 renders as `0 B`, not "unknown").
+fn format_bytes(bytes: u64) -> String {
+    const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
+    let mut value = bytes as f64;
+    let mut unit = 0;
+    while value >= 1024.0 && unit < UNITS.len() - 1 {
+        value /= 1024.0;
+        unit += 1;
+    }
+    if unit == 0 {
+        format!("{bytes} B")
+    } else {
+        format!("{value:.1} {}", UNITS[unit])
+    }
 }
 
 /// Directory holding the configured binary.
@@ -183,6 +211,36 @@ pub(crate) async fn check_dir(params: &ConnectParams, dir: &str) -> Result<DirSt
     client.dir_status(dir).await.map_err(|e| e.to_string())
 }
 
+/// Writable locations that still have room for a bundle, as `path (size free)`.
+///
+/// Only used on the failure path of [`install`], so the extra round-trips cost
+/// nothing in the normal case. One connection is reused for every candidate.
+async fn space_hints(params: &ConnectParams) -> Vec<String> {
+    let Ok(client) = connect(params, 20).await else {
+        return Vec::new();
+    };
+
+    let mut hints = Vec::new();
+    for dir in SPACE_CANDIDATES {
+        let Ok(status) = client.dir_status(dir).await else {
+            continue;
+        };
+        if status.space_known
+            && status.available_bytes >= BUNDLE_MIN_BYTES
+            && (status.writable || status.creatable)
+        {
+            hints.push(format!(
+                "{dir} ({} free)",
+                format_bytes(status.available_bytes)
+            ));
+        }
+        if hints.len() == 3 {
+            break;
+        }
+    }
+    hints
+}
+
 /// Install the full mho bundle on the remote host through `ei`.
 ///
 /// The bundle (`mho-full-<target>.tar.xz` from `mho-assets`) contains the
@@ -215,11 +273,46 @@ pub(crate) async fn install(
         ..Default::default()
     };
 
+    // Check space up front: writing a 20 MB bundle to a full partition fails
+    // after the whole download. `space_known` matters here — a router can
+    // legitimately report 0 bytes free.
+    if let Ok(status) = check_dir(params, install_dir).await
+        && status.space_known
+        && status.available_bytes < BUNDLE_MIN_BYTES
+    {
+        // When the directory does not exist yet, the figure comes from its
+        // nearest existing ancestor (usually `/`), so name that path —
+        // otherwise the message blames a directory that is not even there.
+        let where_ = if status.space_from.is_empty() || status.space_from == status.dir {
+            String::new()
+        } else {
+            format!(" (measured on {})", status.space_from)
+        };
+        let hints = space_hints(params).await;
+        let hint_text = if hints.is_empty() {
+            "No other writable filesystem has enough room either.".to_string()
+        } else {
+            format!("Try instead: {}", hints.join(", "))
+        };
+        return Err(format!(
+            "not enough space for {install_dir}: {} free{where_}, about {:.0} MB required.\n{hint_text}",
+            format_bytes(status.available_bytes),
+            BUNDLE_MIN_BYTES as f64 / 1_048_576.0,
+        ));
+    }
+
     // `ei` handles download, extraction (tar.xz), permissions and remote
     // deployment; the proxy is applied to the GitHub URL automatically.
-    ei(&bundle_url(tag, target), &config)
-        .await
-        .map_err(|e| easy_install::error::format_chain(&e))?;
+    //
+    // The whole install is bounded so a stalled SSH channel can never leave
+    // the UI spinning forever.
+    tokio::time::timeout(
+        Duration::from_secs(INSTALL_TIMEOUT_SECS),
+        ei(&bundle_url(tag, target), &config),
+    )
+    .await
+    .map_err(|_| format!("install timed out after {INSTALL_TIMEOUT_SECS}s"))?
+    .map_err(|e| easy_install::error::format_chain(&e))?;
 
     // Resolve the installed path instead of guessing it: this also expands
     // `~` and confirms the binary really landed. Windows bundles ship
@@ -237,12 +330,7 @@ pub(crate) async fn install(
     let path =
         path.ok_or_else(|| format!("installed, but no mho binary was found in {install_dir}"))?;
 
-    Ok(InstallReport {
-        stdout: format!("Installed {BINARY} at {path}"),
-        stderr: String::new(),
-        exit_code: 0,
-        path,
-    })
+    Ok(InstallReport { path })
 }
 
 #[cfg(test)]
