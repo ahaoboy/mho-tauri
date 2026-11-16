@@ -8,13 +8,15 @@
 //   * runs the two small probes the UI needs (is mho present? is the target
 //     directory usable?).
 
-use easy_install::{DirStatus, InstallConfig, RemoteConfig, SshClient, ei, sh_quote};
+use easy_install::{InstallConfig, RemoteConfig, ei};
 use github_proxy::Proxy;
 use guess_target::Target;
 use serde::Serialize;
+use sssh::Client;
 use std::str::FromStr;
 use std::time::Duration;
 
+use crate::platform;
 use crate::ssh::ConnectParams;
 
 /// Options shown in the install UI come straight from `ei`, so the two
@@ -85,6 +87,51 @@ pub(crate) struct InstallReport {
     pub path: String,
 }
 
+/// State of a directory on the remote host, as sent to the frontend.
+///
+/// Mirrors `src/types.ts` (`DirStatus`), flattening the nested
+/// [`sssh::fs::DiskSpace`] the library returns.
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct DirStatus {
+    /// Path that was inspected (expanded, `~`-free).
+    pub dir: String,
+    pub exists: bool,
+    pub writable: bool,
+    /// The directory is missing, but its nearest existing ancestor is writable.
+    pub creatable: bool,
+    pub total_bytes: u64,
+    pub available_bytes: u64,
+    /// Whether `available_bytes` is a real measurement (0 can mean "full").
+    pub space_known: bool,
+    /// Path the space figures came from (the nearest existing ancestor).
+    pub space_from: String,
+    /// Why the directory is unusable, when it is.
+    pub error: Option<String>,
+}
+
+impl DirStatus {
+    /// Whether the directory can be written to, creating it when needed.
+    fn usable(&self) -> bool {
+        self.writable || (!self.exists && self.creatable)
+    }
+}
+
+impl From<sssh::fs::DirStatus> for DirStatus {
+    fn from(status: sssh::fs::DirStatus) -> Self {
+        Self {
+            dir: status.path.to_string_lossy().into_owned(),
+            exists: status.exists,
+            writable: status.writable,
+            creatable: status.creatable,
+            total_bytes: status.space.total_bytes,
+            available_bytes: status.space.available_bytes,
+            space_known: status.space.known,
+            space_from: status.space.probe_path.to_string_lossy().into_owned(),
+            error: status.error,
+        }
+    }
+}
+
 // ── Connection helpers ──────────────────────────────────────────────────
 
 fn remote_config(params: &ConnectParams) -> RemoteConfig {
@@ -98,18 +145,22 @@ fn remote_config(params: &ConnectParams) -> RemoteConfig {
     }
 }
 
-async fn connect(params: &ConnectParams, timeout_secs: u64) -> Result<SshClient, String> {
-    SshClient::connect(&remote_config(params), timeout_secs)
+async fn connect(params: &ConnectParams, timeout_secs: u64) -> Result<Client, String> {
+    remote_config(params)
+        .connect(timeout_secs)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| easy_install::error::format_chain(&e))
 }
 
-async fn version_of(client: &SshClient, path: &str) -> Option<String> {
+async fn version_of(client: &Client, path: &str) -> Option<String> {
     let output = client
-        .exec_sh(&format!("{} -V 2>/dev/null | head -n 1", sh_quote(path)))
+        .exec_sh(&format!(
+            "{} -V 2>/dev/null | head -n 1",
+            sssh::shell_quote(path)
+        ))
         .await
         .ok()?;
-    let version = output.stdout.trim().to_string();
+    let version = output.stdout_lossy().trim().to_string();
     (!version.is_empty()).then_some(version)
 }
 
@@ -179,9 +230,9 @@ fn expand_home(path: &str, home: &str) -> String {
 /// Probe the remote host: platform, mho availability and suggested paths.
 pub(crate) async fn probe(params: &ConnectParams, mho_path: &str) -> Result<RemoteInfo, String> {
     let client = connect(params, 30).await?;
-    let platform = client.detect_platform().await.map_err(|e| e.to_string())?;
+    let platform = platform::detect(&client).await?;
 
-    let mho_resolved = client.resolve_executable(mho_path).await;
+    let mho_resolved = platform::resolve_executable(&client, mho_path).await;
     let mho_version = match &mho_resolved {
         Some(path) => version_of(&client, path).await,
         None => None,
@@ -208,7 +259,12 @@ pub(crate) async fn probe(params: &ConnectParams, mho_path: &str) -> Result<Remo
 /// Inspect a candidate installation directory.
 pub(crate) async fn check_dir(params: &ConnectParams, dir: &str) -> Result<DirStatus, String> {
     let client = connect(params, 30).await?;
-    client.dir_status(dir).await.map_err(|e| e.to_string())
+    client
+        .fs()
+        .dir_status(dir)
+        .await
+        .map(DirStatus::from)
+        .map_err(|e| e.to_string())
 }
 
 /// Writable locations that still have room for a bundle, as `path (size free)`.
@@ -222,13 +278,11 @@ async fn space_hints(params: &ConnectParams) -> Vec<String> {
 
     let mut hints = Vec::new();
     for dir in SPACE_CANDIDATES {
-        let Ok(status) = client.dir_status(dir).await else {
+        let Ok(status) = client.fs().dir_status(dir).await else {
             continue;
         };
-        if status.space_known
-            && status.available_bytes >= BUNDLE_MIN_BYTES
-            && (status.writable || status.creatable)
-        {
+        let status = DirStatus::from(status);
+        if status.space_known && status.available_bytes >= BUNDLE_MIN_BYTES && status.usable() {
             hints.push(format!(
                 "{dir} ({} free)",
                 format_bytes(status.available_bytes)
@@ -322,7 +376,7 @@ pub(crate) async fn install(
     let mut path = None;
     for name in [BINARY, "mho.exe"] {
         let candidate = format!("{base}/{name}");
-        if let Some(found) = client.resolve_executable(&candidate).await {
+        if let Some(found) = platform::resolve_executable(&client, &candidate).await {
             path = Some(found);
             break;
         }

@@ -32,6 +32,27 @@ pub struct CommandOutput {
     pub exit_code: i32,
 }
 
+impl CommandOutput {
+    /// Convert `sssh`'s byte-oriented [`sssh::Output`] into the string-based
+    /// shape the frontend expects.
+    fn from_ssh(output: sssh::Output) -> Self {
+        let exit_code = match output.code() {
+            Some(code) => code,
+            None => {
+                // A missing exit status must not be reported as success; keep
+                // the legacy behaviour (0) but make it visible for diagnosis.
+                tracing::warn!("remote command finished without an exit status");
+                0
+            }
+        };
+        Self {
+            stdout: output.stdout_lossy(),
+            stderr: output.stderr_lossy(),
+            exit_code,
+        }
+    }
+}
+
 // ── Remote command execution ────────────────────────────────────────────
 
 /// Execute an arbitrary command on the remote host via SSH (exec mode)
@@ -71,20 +92,8 @@ pub(crate) async fn run_remote_command(
     {
         Ok(Ok(output)) => output,
         Ok(Err(e)) => return Err(e),
-        Err(_) => return Err(SshError::Timeout),
+        Err(_) => return Err(SshError::Timeout(timeout_secs)),
     };
 
-    Ok(CommandOutput {
-        stdout: output.stdout,
-        stderr: output.stderr,
-        // A missing exit status must not be reported as success; keep the
-        // legacy behaviour (0) but make it visible for diagnosis.
-        exit_code: match output.exit_code {
-            Some(code) => code as i32,
-            None => {
-                tracing::warn!("remote command finished without an exit status");
-                0
-            }
-        },
-    })
+    Ok(CommandOutput::from_ssh(output))
 }

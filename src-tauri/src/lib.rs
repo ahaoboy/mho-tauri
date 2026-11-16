@@ -3,6 +3,7 @@
 mod commands;
 mod error;
 mod installer;
+mod platform;
 mod ssh;
 use commands::{
     CancelToken, cancel_ssh, check_dir, execute_mho, install_mho, install_options, probe_remote,

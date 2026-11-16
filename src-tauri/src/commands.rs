@@ -1,9 +1,8 @@
 // ── Tauri commands for the Mho Tauri wrapper ────────────────────────────
 
 use crate::error::AppError;
-use crate::installer::{self, InstallReport, RemoteInfo};
+use crate::installer::{self, DirStatus, InstallReport, RemoteInfo};
 use crate::ssh::{CommandOutput, ConnectParams, SshError, run_remote_command};
-use easy_install::DirStatus;
 use serde::Serialize;
 use tokio::sync::watch;
 
