@@ -207,7 +207,7 @@ export default function Dashboard() {
       {/* ── Command selector ────────────────────────── */}
       <Box sx={{ px: 2, pt: 2, pb: 1 }}>
         <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-          <FormControl size="small" sx={{ minWidth: 140 }}>
+          <FormControl size="small" sx={{ flex: 1, minWidth: 0 }}>
             <InputLabel>Command</InputLabel>
             <Select
               value={selectedCmdId}
@@ -227,7 +227,7 @@ export default function Dashboard() {
               size="small"
               color="error"
               onClick={handleCancelCommand}
-              sx={{ textTransform: "none" }}
+              sx={{ textTransform: "none", flexShrink: 0 }}
             >
               Cancel
             </Button>
@@ -245,7 +245,7 @@ export default function Dashboard() {
               }}
               disabled={isUrlCommand(selectedCmd.id) && !urlInput.trim()}
               startIcon={CMD_ICONS[selectedCmdId] ?? <Settings />}
-              sx={{ textTransform: "none" }}
+              sx={{ textTransform: "none", flexShrink: 0 }}
             >
               Run
             </Button>
@@ -261,31 +261,12 @@ export default function Dashboard() {
           >
             {renderStatusChip(selectedState)}
           </Box>
-          <Typography
-            variant="body2"
-            sx={{
-              fontFamily: "monospace",
-              fontSize: 12,
-              color: "text.secondary",
-              bgcolor: "action.hover",
-              px: 1,
-              py: 0.3,
-              borderRadius: 1,
-              border: 1,
-              borderColor: "divider",
-              minWidth: 0,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            mho {selectedCmd.args.join(" ")}
-          </Typography>
         </Stack>
 
         {/* URL input for commands that require a URL */}
         {isUrlCommand(selectedCmd.id) && (
           <TextField
+            fullWidth
             size="small"
             placeholder="https://example.com"
             value={urlInput}
@@ -296,6 +277,25 @@ export default function Dashboard() {
             }}
           />
         )}
+
+        {/* The command gets its own line: args can be long. */}
+        <Box
+          sx={{
+            mt: 1,
+            px: 1,
+            py: 0.5,
+            borderRadius: 1,
+            border: 1,
+            borderColor: "divider",
+            bgcolor: "action.hover",
+            fontFamily: "monospace",
+            fontSize: 12,
+            color: "text.secondary",
+            wordBreak: "break-all",
+          }}
+        >
+          $ mho {selectedCmd.args.join(" ")}
+        </Box>
       </Box>
 
       <Divider sx={{ my: 1.5 }} />
@@ -329,7 +329,7 @@ export default function Dashboard() {
           elevation={3}
           sx={{
             flex: 1,
-            p: 2,
+            p: { xs: 1.5, sm: 2 },
             overflow: "auto",
             bgcolor: "#1e1e1e",
             color: "#d4d4d4",

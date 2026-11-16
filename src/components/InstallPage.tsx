@@ -20,16 +20,35 @@ import {
 } from "@mui/material";
 import { CheckCircle, Download, Refresh, WarningAmber } from "@mui/icons-material";
 import { useStore } from "../store";
-import type { DirStatus, InstallOptions, InstallReport, InstallProxy } from "../types";
+import type {
+  DirStatus,
+  InstallOptions,
+  InstallReport,
+  InstallProxy,
+  InstallSource,
+} from "../types";
 
-// ── Proxy metadata ──────────────────────────────────────────────────────
+// ── Proxy / source metadata ─────────────────────────────────────────────
+//
+// The bundle is published twice: committed to the `mho-assets` repo (`main`)
+// and attached to the `nightly` release. Repo-hosted archives work with every
+// proxy; jsDelivr and Statically only mirror repo files, so they cannot serve
+// release assets.
 
-const PROXY_OPTIONS: { id: InstallProxy; label: string; supportsRelease: boolean }[] = [
-  { id: "github", label: "GitHub (direct)", supportsRelease: true },
-  { id: "gh-proxy", label: "gh-proxy.com", supportsRelease: true },
-  { id: "xget", label: "xget.xi-xu.me", supportsRelease: true },
-  { id: "jsdelivr", label: "jsDelivr", supportsRelease: false },
-  { id: "statically", label: "Statically", supportsRelease: false },
+const PROXY_OPTIONS: { id: InstallProxy; label: string }[] = [
+  { id: "github", label: "GitHub" },
+  { id: "gh-proxy", label: "gh-proxy" },
+  { id: "xget", label: "xget" },
+  { id: "jsdelivr", label: "jsDelivr" },
+  { id: "statically", label: "Statically" },
+];
+
+/** Proxies that can serve release assets. */
+const RELEASE_PROXIES: ReadonlySet<InstallProxy> = new Set(["github", "gh-proxy", "xget"]);
+
+const SOURCE_OPTIONS: { id: InstallSource; label: string }[] = [
+  { id: "repo", label: "Repo (main)" },
+  { id: "release", label: "Release (nightly)" },
 ];
 
 /** Fallback list when the backend has not answered yet (mho-full assets). */
@@ -72,6 +91,7 @@ export default function InstallPage() {
   const [dir, setDir] = useState("");
   const [target, setTarget] = useState("");
   const [proxy, setProxy] = useState<InstallProxy>("github");
+  const [source, setSource] = useState<InstallSource>("repo");
 
   const [dirStatus, setDirStatus] = useState<DirStatus | null>(null);
   const [checking, setChecking] = useState(false);
@@ -175,6 +195,7 @@ export default function InstallPage() {
         installDir: dirValue,
         target,
         proxy,
+        source,
       });
       setReport(result);
       // Patching the store flips the tab from "Install (required)" to
@@ -185,7 +206,7 @@ export default function InstallPage() {
     } finally {
       setInstalling(false);
     }
-  }, [dir, target, proxy, sshConfig, markInstalled]);
+  }, [dir, target, proxy, source, sshConfig, markInstalled]);
 
   const handleCancel = useCallback(async () => {
     try {
@@ -197,8 +218,14 @@ export default function InstallPage() {
 
   // ── Derived state ─────────────────────────────────────────────
   const dirUsable = !!dirStatus && (dirStatus.writable || dirStatus.creatable);
-  const canInstall = !installing && !!dir.trim() && !!target && (dirStatus === null || dirUsable);
   const unsupported = !!remote && !remote.target_supported;
+  const proxySupportsSource = source === "repo" || RELEASE_PROXIES.has(proxy);
+  const canInstall =
+    !installing &&
+    !!dir.trim() &&
+    !!target &&
+    proxySupportsSource &&
+    (dirStatus === null || dirUsable);
 
   let dirLabel = "";
   if (dirStatus) {
@@ -308,7 +335,7 @@ export default function InstallPage() {
           </Stack>
         </Box>
 
-        {/* ── Target + proxy (stacked on phones) ────── */}
+        {/* ── Target / source / proxy (stacked on phones) ────── */}
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
           <FormControl size="small" sx={{ flex: 2, width: "100%" }}>
             <InputLabel>Target</InputLabel>
@@ -328,28 +355,50 @@ export default function InstallPage() {
             </Select>
           </FormControl>
           <FormControl size="small" sx={{ flex: 1, width: "100%" }}>
+            <InputLabel>Source</InputLabel>
+            <Select
+              label="Source"
+              value={source}
+              onChange={(e) => {
+                const next = e.target.value as InstallSource;
+                setSource(next);
+                // Release assets are rejected by the file-only mirrors.
+                if (next === "release" && !RELEASE_PROXIES.has(proxy)) setProxy("github");
+              }}
+            >
+              {SOURCE_OPTIONS.map((option) => (
+                <MenuItem key={option.id} value={option.id} dense>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ flex: 1, width: "100%" }}>
             <InputLabel>Proxy</InputLabel>
             <Select
               label="Proxy"
               value={proxy}
               onChange={(e) => setProxy(e.target.value as InstallProxy)}
             >
-              {PROXY_OPTIONS.map((option) => (
-                <MenuItem
-                  key={option.id}
-                  value={option.id}
-                  dense
-                  disabled={!option.supportsRelease}
-                >
-                  {option.label}
-                </MenuItem>
-              ))}
+              {PROXY_OPTIONS.map((option) => {
+                const usable = source === "repo" || RELEASE_PROXIES.has(option.id);
+                return (
+                  <MenuItem key={option.id} value={option.id} dense disabled={!usable}>
+                    {option.label}
+                  </MenuItem>
+                );
+              })}
             </Select>
           </FormControl>
         </Stack>
         {unsupported && (
           <Typography variant="caption" color="warning.main">
             No bundle is published for {remote?.target} — pick another target.
+          </Typography>
+        )}
+        {source === "release" && (
+          <Typography variant="caption" color="text.secondary">
+            Release assets cannot be served by jsDelivr or Statically.
           </Typography>
         )}
 

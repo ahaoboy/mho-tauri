@@ -26,8 +26,13 @@ pub(crate) use easy_install::{PROXIES, default_target};
 /// Repository that publishes the full mho bundle (binary + default config
 /// + base assets).
 const BUNDLE_REPO: &str = "ahaoboy/mho-assets";
-/// Default release tag (nightly builds).
+/// Release tag of the nightly bundle.
 const BUNDLE_TAG: &str = "nightly";
+/// Branch the bundle is also committed to.
+///
+/// Repo-hosted archives work with *every* proxy: jsDelivr and Statically only
+/// mirror repo files, so `/releases/download/` URLs are rejected there.
+const BUNDLE_REF: &str = "main";
 const BINARY: &str = "mho";
 
 /// Warm-up budget for the whole install (download + upload to the remote).
@@ -51,9 +56,40 @@ pub(crate) const TARGETS: &[&str] = &[
     "x86_64-pc-windows-gnu",
 ];
 
+/// Bundle sources offered in the UI.
+pub(crate) const SOURCES: &[&str] = &["repo", "release"];
+
+/// Where the bundle is downloaded from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BundleSource {
+    /// Archive committed to the repo (`main`). Works with every proxy.
+    Repo,
+    /// GitHub release asset (`nightly`). Release-only mirrors work here.
+    Release,
+}
+
+impl BundleSource {
+    /// Parse the UI value; anything empty or unknown means the repo copy,
+    /// which is the most compatible choice.
+    pub(crate) fn parse(value: &str) -> Option<Self> {
+        match value.trim() {
+            "" | "repo" => Some(Self::Repo),
+            "release" => Some(Self::Release),
+            _ => None,
+        }
+    }
+}
+
 /// Download URL of the bundle for `target`.
-fn bundle_url(tag: &str, target: &str) -> String {
-    format!("https://github.com/{BUNDLE_REPO}/releases/download/{tag}/mho-full-{target}.tar.xz")
+fn bundle_url(source: BundleSource, target: &str) -> String {
+    match source {
+        BundleSource::Repo => {
+            format!("https://github.com/{BUNDLE_REPO}/raw/{BUNDLE_REF}/mho-full-{target}.tar.xz")
+        }
+        BundleSource::Release => format!(
+            "https://github.com/{BUNDLE_REPO}/releases/download/{BUNDLE_TAG}/mho-full-{target}.tar.xz"
+        ),
+    }
 }
 
 // ── Result types ────────────────────────────────────────────────────────
@@ -304,7 +340,7 @@ pub(crate) async fn install(
     install_dir: &str,
     target: &str,
     proxy: &str,
-    tag: Option<&str>,
+    source: &str,
 ) -> Result<InstallReport, String> {
     let install_dir = install_dir.trim();
     if install_dir.is_empty() {
@@ -312,13 +348,14 @@ pub(crate) async fn install(
     }
 
     let proxy = Proxy::from_str(proxy).map_err(|e| format!("unsupported proxy: {e}"))?;
+    let source = BundleSource::parse(source)
+        .ok_or_else(|| format!("unsupported bundle source: {source}"))?;
     // Validate the triple before hitting the network so a typo fails fast.
     Target::from_str(target).map_err(|e| format!("unsupported target: {e}"))?;
     if !TARGETS.contains(&target) {
         return Err(format!("no mho-full bundle is published for {target}"));
     }
 
-    let tag = tag.filter(|t| !t.is_empty()).unwrap_or(BUNDLE_TAG);
     let config = InstallConfig {
         dir: Some(install_dir.to_string()),
         proxy,
@@ -362,7 +399,7 @@ pub(crate) async fn install(
     // the UI spinning forever.
     tokio::time::timeout(
         Duration::from_secs(INSTALL_TIMEOUT_SECS),
-        ei(&bundle_url(tag, target), &config),
+        ei(&bundle_url(source, target), &config),
     )
     .await
     .map_err(|_| format!("install timed out after {INSTALL_TIMEOUT_SECS}s"))?
@@ -429,15 +466,49 @@ mod tests {
     #[test]
     fn builds_bundle_urls() {
         assert_eq!(
-            bundle_url("nightly", "aarch64-apple-darwin"),
+            bundle_url(BundleSource::Repo, "aarch64-apple-darwin"),
+            "https://github.com/ahaoboy/mho-assets/raw/main/mho-full-aarch64-apple-darwin.tar.xz"
+        );
+        assert_eq!(
+            bundle_url(BundleSource::Release, "aarch64-apple-darwin"),
             "https://github.com/ahaoboy/mho-assets/releases/download/nightly/mho-full-aarch64-apple-darwin.tar.xz"
         );
     }
 
     #[test]
+    fn parses_bundle_source() {
+        assert_eq!(BundleSource::parse(""), Some(BundleSource::Repo));
+        assert_eq!(BundleSource::parse("repo"), Some(BundleSource::Repo));
+        assert_eq!(BundleSource::parse("release"), Some(BundleSource::Release));
+        assert_eq!(BundleSource::parse("ftp"), None);
+    }
+
+    /// The repo copy must be servable through every proxy; the release asset
+    /// only through the release-aware ones.
+    #[test]
+    fn proxies_support_the_bundle_sources() {
+        let repo = bundle_url(BundleSource::Repo, "aarch64-unknown-linux-musl");
+        let repo = github_proxy::Resource::try_from(repo.as_str()).expect("repo copy is a file");
+        let release = bundle_url(BundleSource::Release, "aarch64-unknown-linux-musl");
+        let release =
+            github_proxy::Resource::try_from(release.as_str()).expect("release is an asset");
+
+        for proxy in PROXIES.iter().filter_map(|p| Proxy::from_str(p).ok()) {
+            assert!(repo.url(&proxy).is_some(), "{proxy} cannot serve the repo copy");
+        }
+        assert!(release.url(&Proxy::Github).is_some());
+        assert!(release.url(&Proxy::Jsdelivr).is_none());
+        assert!(release.url(&Proxy::Statically).is_none());
+    }
+
+    #[test]
     fn every_target_has_a_bundle_url() {
         for target in TARGETS {
-            assert!(bundle_url(BUNDLE_TAG, target).ends_with(&format!("mho-full-{target}.tar.xz")));
+            for source in [BundleSource::Repo, BundleSource::Release] {
+                assert!(
+                    bundle_url(source, target).ends_with(&format!("mho-full-{target}.tar.xz"))
+                );
+            }
         }
     }
 }

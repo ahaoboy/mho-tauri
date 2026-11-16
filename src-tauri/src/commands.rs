@@ -106,6 +106,8 @@ pub(crate) struct InstallOptions {
     pub target: String,
     pub targets: Vec<&'static str>,
     pub proxies: Vec<&'static str>,
+    /// Bundle sources: `repo` (works with every proxy) and `release`.
+    pub sources: Vec<&'static str>,
 }
 
 #[tauri::command]
@@ -120,6 +122,7 @@ pub(crate) fn install_options() -> InstallOptions {
         target,
         targets: installer::TARGETS.to_vec(),
         proxies: installer::PROXIES.to_vec(),
+        sources: installer::SOURCES.to_vec(),
     }
 }
 
@@ -165,18 +168,13 @@ pub(crate) async fn install_mho(
     install_dir: String,
     target: String,
     proxy: String,
-    tag: Option<String>,
+    source: Option<String>,
 ) -> Result<InstallReport, String> {
     let (generation, cancel_rx) = state.subscribe();
+    let source = source.unwrap_or_default();
 
     tokio::select! {
-        result = installer::install(
-            &ssh_config,
-            &install_dir,
-            &target,
-            &proxy,
-            tag.as_deref(),
-        ) => result,
+        result = installer::install(&ssh_config, &install_dir, &target, &proxy, &source) => result,
         _ = wait_cancelled(generation, cancel_rx) => {
             Err("Installation cancelled".to_string())
         }

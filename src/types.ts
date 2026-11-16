@@ -134,6 +134,8 @@ export interface InstallOptions {
   target: string;
   targets: string[];
   proxies: string[];
+  /** Bundle sources, e.g. `repo` and `release`. */
+  sources: string[];
 }
 
 /** Result of a successful install. */
@@ -144,3 +146,10 @@ export interface InstallReport {
 
 /** Download proxy services supported by `github-proxy`. */
 export type InstallProxy = "github" | "gh-proxy" | "xget" | "jsdelivr" | "statically";
+
+/**
+ * Where the bundle comes from:
+ * - `repo`: archive committed to the repo — every proxy can serve it.
+ * - `release`: GitHub release asset — jsDelivr/Statically cannot.
+ */
+export type InstallSource = "repo" | "release";
