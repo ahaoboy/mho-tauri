@@ -1,7 +1,7 @@
 // ── Dashboard header bar ────────────────────────────────────────────────
 
 import { useState, useCallback } from "react";
-import { AppBar, IconButton, Toolbar, Typography } from "@mui/material";
+import { AppBar, Box, IconButton, Toolbar, Typography } from "@mui/material";
 import { Terminal, Logout } from "@mui/icons-material";
 import { useTerminalTheme } from "../hooks/useTerminalTheme";
 import { useStore } from "../store";
@@ -59,7 +59,16 @@ export default function DashboardHeader() {
             "&:hover": { color: "text.primary" },
           }}
         >
-          {copied ? "Copied!" : `${connectionString}  ·  ${mhoPath}`}
+          {copied ? (
+            "Copied!"
+          ) : (
+            <>
+              {connectionString}
+              <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                {`  ·  ${mhoPath}`}
+              </Box>
+            </>
+          )}
         </Typography>
 
         <IconButton size="small" color="error" onClick={disconnect} title="Disconnect">

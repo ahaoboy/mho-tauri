@@ -15,6 +15,7 @@ import {
   Select,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { CheckCircle, Download, Refresh, WarningAmber } from "@mui/icons-material";
@@ -59,6 +60,7 @@ function formatBytes(bytes: number): string {
 
 export default function InstallPage() {
   const sshConfig = useStore((s) => s.sshConfig);
+  const host = useStore((s) => s.host);
   const mhoPath = useStore((s) => s.mhoPath);
   const remote = useStore((s) => s.remote);
   const probing = useStore((s) => s.probing);
@@ -212,29 +214,45 @@ export default function InstallPage() {
 
   return (
     <Box sx={{ flex: 1, minHeight: 0, overflow: "auto", px: 2, py: 2 }}>
-      {/* ── Remote host summary ───────────────────────── */}
-      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 2 }}>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          {remote ? (
-            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-              {remote.mho_exists ? (
-                <CheckCircle color="success" sx={{ fontSize: 16 }} />
-              ) : (
-                <WarningAmber color="warning" sx={{ fontSize: 16 }} />
-              )}
-              <Typography variant="body2" color="text.secondary" noWrap>
-                {remote.user}@{remote.os.toLowerCase()} ({remote.arch})
-                {remote.mho_exists
-                  ? ` · ${remote.mho_version ?? remote.mho_resolved}`
-                  : ` · mho not found (${mhoPath})`}
-              </Typography>
-            </Stack>
-          ) : (
-            <Typography variant="body2" color="text.secondary">
-              Remote host
-            </Typography>
-          )}
-        </Box>
+      {/* ── Remote host summary (compact) ─────────────── */}
+      <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2, minWidth: 0 }}>
+        {remote ? (
+          <>
+            <Tooltip title={`${remote.user}@${host} · ${remote.target}`}>
+              <Chip
+                size="small"
+                variant="outlined"
+                label={`${remote.os.toLowerCase()} · ${remote.arch}`}
+              />
+            </Tooltip>
+            <Tooltip
+              title={remote.mho_exists ? (remote.mho_resolved ?? "") : `not found at ${mhoPath}`}
+            >
+              <Chip
+                size="small"
+                variant="outlined"
+                color={remote.mho_exists ? "success" : "warning"}
+                icon={
+                  remote.mho_exists ? (
+                    <CheckCircle fontSize="small" />
+                  ) : (
+                    <WarningAmber fontSize="small" />
+                  )
+                }
+                label={
+                  remote.mho_exists
+                    ? (remote.mho_version?.replace(/^mho\s+/i, "") ?? "installed")
+                    : "not installed"
+                }
+              />
+            </Tooltip>
+          </>
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            Remote host
+          </Typography>
+        )}
+        <Box sx={{ flex: 1 }} />
         {probing ? (
           <CircularProgress size={16} />
         ) : (
@@ -290,14 +308,15 @@ export default function InstallPage() {
           </Stack>
         </Box>
 
-        {/* ── Target + proxy ────────────────────────── */}
-        <Stack direction="row" spacing={1.5}>
-          <FormControl size="small" sx={{ flex: 2 }}>
+        {/* ── Target + proxy (stacked on phones) ────── */}
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+          <FormControl size="small" sx={{ flex: 2, width: "100%" }}>
             <InputLabel>Target</InputLabel>
             <Select
               label="Target"
               value={target}
               onChange={(e) => setTarget(e.target.value)}
+              renderValue={(value) => value}
               sx={{ fontFamily: "monospace", fontSize: 13 }}
             >
               {targets.map((value) => (
@@ -308,7 +327,7 @@ export default function InstallPage() {
               ))}
             </Select>
           </FormControl>
-          <FormControl size="small" sx={{ flex: 1 }}>
+          <FormControl size="small" sx={{ flex: 1, width: "100%" }}>
             <InputLabel>Proxy</InputLabel>
             <Select
               label="Proxy"
@@ -341,7 +360,7 @@ export default function InstallPage() {
               variant="outlined"
               color="error"
               onClick={handleCancel}
-              sx={{ textTransform: "none" }}
+              sx={{ textTransform: "none", width: { xs: "100%", sm: "auto" } }}
             >
               Cancel
             </Button>
@@ -351,7 +370,7 @@ export default function InstallPage() {
               onClick={handleInstall}
               disabled={!canInstall}
               startIcon={<Download />}
-              sx={{ textTransform: "none" }}
+              sx={{ textTransform: "none", width: { xs: "100%", sm: "auto" } }}
             >
               Install mho
             </Button>
@@ -361,8 +380,8 @@ export default function InstallPage() {
 
         {report && !installing && (
           <Alert severity="success" icon={<CheckCircle fontSize="inherit" />}>
-            Installed to{" "}
-            <Box component="span" sx={{ fontFamily: "monospace" }}>
+            Installed ·{" "}
+            <Box component="span" sx={{ fontFamily: "monospace", wordBreak: "break-all" }}>
               {report.path}
             </Box>
           </Alert>
