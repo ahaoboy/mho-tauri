@@ -27,116 +27,51 @@ import {
   Delete,
   Terminal,
 } from "@mui/icons-material";
-import type { AuthMethod, ParsedSshInput, SavedConfig } from "../types";
+import type { AuthMethod } from "../types";
 import { normalizePrivateKey } from "../utils/keyNormalizer";
-import { generateConfigId } from "../utils/configStore";
 import { parseSshInput } from "../utils/sshParser";
-
-// ── Props ────────────────────────────────────────────────────────────────
-
-interface LoginFormProps {
-  /** Config label (auto-generated default, user-customizable). */
-  label: string;
-  /** Current form values. */
-  host: string;
-  port: string;
-  username: string;
-  authMethod: AuthMethod;
-  password: string;
-  privateKey: string;
-  /** Path to the mho binary on the remote host. */
-  mhoPath: string;
-  /** "true" when a login attempt is in progress. */
-  connecting: boolean;
-  /** Error message to display. */
-  error: string;
-  /** List of saved configs for quick-load. */
-  savedConfigs: SavedConfig[];
-  /** Called when any field changes. */
-  onChange: (field: string, value: string) => void;
-  /** Called when auth method changes. */
-  onAuthMethodChange: (method: AuthMethod) => void;
-  /** Called when the user clicks Connect. */
-  onConnect: () => void;
-  /** Called when the user cancels an in-flight connection attempt. */
-  onCancel: () => void;
-  /** Called to load a saved config. */
-  onLoadConfig: (config: SavedConfig) => void;
-  /** Called to save current form as a new config. */
-  onSaveConfig: () => void;
-  /** Called to delete the currently selected config. */
-  onDeleteConfig: (id: string) => void;
-  /** Currently selected config ID (controlled). */
-  selectedConfigId: string;
-  /** Called when the dropdown selection changes. */
-  onSelectConfig: (id: string) => void;
-  /** Called when a paste is recognized as connection info. */
-  onAutoFill: (parsed: ParsedSshInput) => void;
-}
-
-/** Return a fresh default config object with a unique id. */
-function getDefaultConfig(): SavedConfig {
-  return {
-    id: generateConfigId(),
-    label: "",
-    host: "",
-    port: "22",
-    username: "",
-    authMethod: "password",
-    password: "",
-    privateKey: "",
-    mhoPath: "mho",
-  };
-}
+import { useStore } from "../store";
 
 // ── Component ────────────────────────────────────────────────────────────
 
-export default function LoginForm({
-  label,
-  host,
-  port,
-  username,
-  authMethod,
-  password,
-  privateKey,
-  mhoPath,
-  connecting,
-  error,
-  savedConfigs,
-  onChange,
-  onAuthMethodChange,
-  onConnect,
-  onCancel,
-  onLoadConfig,
-  onSaveConfig,
-  onDeleteConfig,
-  selectedConfigId,
-  onSelectConfig,
-  onAutoFill,
-}: LoginFormProps) {
+export default function LoginForm() {
+  const label = useStore((s) => s.label);
+  const host = useStore((s) => s.host);
+  const port = useStore((s) => s.port);
+  const username = useStore((s) => s.username);
+  const authMethod = useStore((s) => s.authMethod);
+  const password = useStore((s) => s.password);
+  const privateKey = useStore((s) => s.privateKey);
+  const mhoPath = useStore((s) => s.mhoPath);
+  const connecting = useStore((s) => s.connecting);
+  const error = useStore((s) => s.error);
+  const savedConfigs = useStore((s) => s.savedConfigs);
+  const selectedConfigId = useStore((s) => s.selectedConfigId);
+
+  const setField = useStore((s) => s.setField);
+  const setAuthMethod = useStore((s) => s.setAuthMethod);
+  const loadConfig = useStore((s) => s.loadConfig);
+  const newConfig = useStore((s) => s.newConfig);
+  const saveCurrentConfig = useStore((s) => s.saveCurrentConfig);
+  const removeConfig = useStore((s) => s.removeConfig);
+  const autoFill = useStore((s) => s.autoFill);
+  const connect = useStore((s) => s.connect);
+  const cancelConnect = useStore((s) => s.cancelConnect);
+
   const theme = useTheme();
   const isNarrow = useMediaQuery(theme.breakpoints.down("sm"));
   const [showPassword, setShowPassword] = useState(false);
 
-  /** Track manual edits to clear the dropdown selection. */
-  const handleFieldChange = useCallback(
-    (field: string, value: string) => {
-      onSelectConfig("");
-      onChange(field, value);
-    },
-    [onChange, onSelectConfig],
-  );
-
   /** Normalize the private key when the user leaves the field. */
   const handlePrivateKeyBlur = useCallback(() => {
     if (privateKey.trim()) {
-      handleFieldChange("privateKey", normalizePrivateKey(privateKey));
+      setField("privateKey", normalizePrivateKey(privateKey));
     }
-  }, [privateKey, handleFieldChange]);
+  }, [privateKey, setField]);
 
   /**
    * Smart paste: recognize pasted connection strings and hand the extracted
-   * fields to the parent. Fields marked `data-raw-paste` are left untouched.
+   * fields to the store. Fields marked `data-raw-paste` are left untouched.
    */
   const handlePaste = useCallback(
     (e: ClipboardEvent<HTMLElement>) => {
@@ -147,9 +82,9 @@ export default function LoginForm({
       if (!parsed?.host) return;
 
       e.preventDefault();
-      onAutoFill(parsed);
+      void autoFill(parsed);
     },
-    [onAutoFill],
+    [autoFill],
   );
 
   const canConnect = host.trim() && username.trim();
@@ -201,15 +136,11 @@ export default function LoginForm({
             onChange={(e) => {
               const id = e.target.value;
               if (id === "__new__") {
-                onSelectConfig("");
-                onLoadConfig(getDefaultConfig());
+                newConfig();
                 return;
               }
               const cfg = savedConfigs.find((c) => c.id === id);
-              if (cfg) {
-                onSelectConfig(cfg.id);
-                onLoadConfig(cfg);
-              }
+              if (cfg) loadConfig(cfg);
             }}
           >
             <MenuItem value="__new__" dense>
@@ -236,7 +167,7 @@ export default function LoginForm({
           component="form"
           onSubmit={(e) => {
             e.preventDefault();
-            if (!connecting) onConnect();
+            if (!connecting) void connect();
           }}
           sx={{ display: "flex", flexDirection: "column", gap: 2 }}
         >
@@ -245,7 +176,7 @@ export default function LoginForm({
             label="Config Name"
             placeholder="my-server"
             value={label}
-            onChange={(e) => handleFieldChange("label", e.target.value)}
+            onChange={(e) => setField("label", e.target.value)}
           />
 
           {/* Host + Port */}
@@ -254,7 +185,7 @@ export default function LoginForm({
               label="Host"
               placeholder="192.168.1.1"
               value={host}
-              onChange={(e) => handleFieldChange("host", e.target.value)}
+              onChange={(e) => setField("host", e.target.value)}
               required
               sx={{ flex: 2 }}
             />
@@ -262,7 +193,7 @@ export default function LoginForm({
               label="Port"
               type="number"
               value={port}
-              onChange={(e) => handleFieldChange("port", e.target.value)}
+              onChange={(e) => setField("port", e.target.value)}
               slotProps={{ htmlInput: { min: 1, max: 65535 } }}
               sx={{ flex: 1 }}
             />
@@ -273,7 +204,7 @@ export default function LoginForm({
             label="Username"
             placeholder="root"
             value={username}
-            onChange={(e) => handleFieldChange("username", e.target.value)}
+            onChange={(e) => setField("username", e.target.value)}
             required
           />
 
@@ -284,8 +215,7 @@ export default function LoginForm({
               value={authMethod}
               label="Authentication"
               onChange={(e) => {
-                onSelectConfig("");
-                onAuthMethodChange(e.target.value as AuthMethod);
+                setAuthMethod(e.target.value as AuthMethod);
               }}
             >
               <MenuItem value="password">
@@ -305,7 +235,7 @@ export default function LoginForm({
               label="Password"
               type={showPassword ? "text" : "password"}
               value={password}
-              onChange={(e) => handleFieldChange("password", e.target.value)}
+              onChange={(e) => setField("password", e.target.value)}
               placeholder="••••••••"
               slotProps={{
                 htmlInput: { "data-raw-paste": "" },
@@ -332,7 +262,7 @@ export default function LoginForm({
               minRows={4}
               maxRows={8}
               value={privateKey}
-              onChange={(e) => handleFieldChange("privateKey", e.target.value)}
+              onChange={(e) => setField("privateKey", e.target.value)}
               onBlur={handlePrivateKeyBlur}
               placeholder="-----BEGIN OPENSSH PRIVATE KEY-----\n..."
               slotProps={{
@@ -348,7 +278,7 @@ export default function LoginForm({
           <TextField
             label="Mho Binary Path"
             value={mhoPath}
-            onChange={(e) => handleFieldChange("mhoPath", e.target.value)}
+            onChange={(e) => setField("mhoPath", e.target.value)}
             placeholder="mho"
             helperText="Path to the mho binary on the remote host"
             slotProps={{
@@ -376,26 +306,21 @@ export default function LoginForm({
                 type="button"
                 variant="outlined"
                 color="error"
-                onClick={onCancel}
+                onClick={() => void cancelConnect()}
                 startIcon={<CircularProgress size={16} color="inherit" />}
                 sx={{ flex: 2 }}
               >
                 Cancel
               </Button>
             ) : (
-              <Button
-                type="submit"
-                variant="contained"
-                disabled={!canConnect}
-                sx={{ flex: 2 }}
-              >
+              <Button type="submit" variant="contained" disabled={!canConnect} sx={{ flex: 2 }}>
                 Connect
               </Button>
             )}
             <Button
               variant="contained"
               color="primary"
-              onClick={onSaveConfig}
+              onClick={saveCurrentConfig}
               disabled={!canConnect || connecting}
               title="Save current config"
               sx={{ minWidth: 40, px: 1 }}
@@ -406,12 +331,7 @@ export default function LoginForm({
               <Button
                 variant="contained"
                 color="error"
-                onClick={() => {
-                  const id = selectedConfigId;
-                  onSelectConfig("");
-                  onDeleteConfig(id);
-                  onLoadConfig(getDefaultConfig());
-                }}
+                onClick={() => removeConfig(selectedConfigId)}
                 disabled={connecting}
                 title="Delete selected config"
                 sx={{ minWidth: 40, px: 1 }}

@@ -4,26 +4,17 @@ import { useState, useCallback } from "react";
 import { AppBar, IconButton, Toolbar, Typography } from "@mui/material";
 import { Terminal, Logout } from "@mui/icons-material";
 import { useTerminalTheme } from "../hooks/useTerminalTheme";
-
-// ── Props ────────────────────────────────────────────────────────────────
-
-interface DashboardHeaderProps {
-  username: string;
-  host: string;
-  port: string;
-  mhoPath: string;
-  onDisconnect: () => void;
-}
+import { useStore } from "../store";
 
 // ── Component ────────────────────────────────────────────────────────────
 
-export default function DashboardHeader({
-  username,
-  host,
-  port,
-  mhoPath,
-  onDisconnect,
-}: DashboardHeaderProps) {
+export default function DashboardHeader() {
+  const username = useStore((s) => s.username);
+  const host = useStore((s) => s.host);
+  const port = useStore((s) => s.port);
+  const mhoPath = useStore((s) => s.mhoPath);
+  const disconnect = useStore((s) => s.disconnect);
+
   const [copied, setCopied] = useState(false);
   const { chrome } = useTerminalTheme();
 
@@ -71,7 +62,7 @@ export default function DashboardHeader({
           {copied ? "Copied!" : `${connectionString}  ·  ${mhoPath}`}
         </Typography>
 
-        <IconButton size="small" color="error" onClick={onDisconnect} title="Disconnect">
+        <IconButton size="small" color="error" onClick={disconnect} title="Disconnect">
           <Logout sx={{ fontSize: 18 }} />
         </IconButton>
       </Toolbar>

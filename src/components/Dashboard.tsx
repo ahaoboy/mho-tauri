@@ -33,12 +33,12 @@ import {
   type CommandOutput,
   type MhoCommandDef,
   type CommandState,
-  type SshConfig,
   type MhoCommandId,
   DEFAULT_COMMAND_ID,
   MHO_COMMANDS,
   isUrlCommand,
 } from "../types";
+import { useStore } from "../store";
 
 // ── Command definitions (extensible, single source of truth) ─────────────
 
@@ -85,19 +85,12 @@ function linkify(text: string): React.ReactNode[] {
   return parts;
 }
 
-// ── Props ────────────────────────────────────────────────────────────────
-
-interface DashboardProps {
-  username: string;
-  host: string;
-  port: string;
-  mhoPath: string;
-  sshConfig: SshConfig;
-}
-
 // ── Component ────────────────────────────────────────────────────────────
 
-export default function Dashboard({ username, host, port, mhoPath, sshConfig }: DashboardProps) {
+export default function Dashboard() {
+  const mhoPath = useStore((s) => s.mhoPath);
+  const sshConfig = useStore((s) => s.sshConfig);
+
   const [selectedCmdId, setSelectedCmdId] = useState<MhoCommandId>(DEFAULT_COMMAND_ID);
   const [urlInput, setUrlInput] = useState("");
   const [commandStates, setCommandStates] = useState<Record<string, CommandState>>({});
@@ -151,7 +144,7 @@ export default function Dashboard({ username, host, port, mhoPath, sshConfig }: 
         }));
       }
     },
-    [host, port, username, mhoPath, sshConfig],
+    [mhoPath, sshConfig],
   );
 
   // ── Cancel the in-flight command ─────────────────────────────

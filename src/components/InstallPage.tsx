@@ -8,26 +8,18 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Divider,
   FormControl,
-  FormHelperText,
+  IconButton,
   InputLabel,
   MenuItem,
-  Paper,
   Select,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
-import { CheckCircle, Download, Refresh, Storage } from "@mui/icons-material";
-import type {
-  DirStatus,
-  InstallOptions,
-  InstallReport,
-  InstallProxy,
-  RemoteInfo,
-  SshConfig,
-} from "../types";
+import { CheckCircle, Download, Refresh, WarningAmber } from "@mui/icons-material";
+import { useStore } from "../store";
+import type { DirStatus, InstallOptions, InstallReport, InstallProxy } from "../types";
 
 // ── Proxy metadata ──────────────────────────────────────────────────────
 
@@ -63,30 +55,17 @@ function formatBytes(bytes: number): string {
   return `${text} ${units[unit]}`;
 }
 
-// ── Props ────────────────────────────────────────────────────────────────
-
-interface InstallPageProps {
-  sshConfig: SshConfig;
-  mhoPath: string;
-  remote: RemoteInfo | null;
-  probing: boolean;
-  probeError: string;
-  onRefresh: () => void;
-  /** Called with the absolute path of the installed binary. */
-  onInstalled: (installedPath: string) => void;
-}
-
 // ── Component ────────────────────────────────────────────────────────────
 
-export default function InstallPage({
-  sshConfig,
-  mhoPath,
-  remote,
-  probing,
-  probeError,
-  onRefresh,
-  onInstalled,
-}: InstallPageProps) {
+export default function InstallPage() {
+  const sshConfig = useStore((s) => s.sshConfig);
+  const mhoPath = useStore((s) => s.mhoPath);
+  const remote = useStore((s) => s.remote);
+  const probing = useStore((s) => s.probing);
+  const probeError = useStore((s) => s.probeError);
+  const probe = useStore((s) => s.probe);
+  const markInstalled = useStore((s) => s.markInstalled);
+
   const [options, setOptions] = useState<InstallOptions | null>(null);
   const [dir, setDir] = useState("");
   const [target, setTarget] = useState("");
@@ -140,6 +119,17 @@ export default function InstallPage({
     [sshConfig],
   );
 
+  // Re-check whenever the directory settles, so the form has no Check button.
+  useEffect(() => {
+    const value = dir.trim();
+    if (!value) {
+      setDirStatus(null);
+      return;
+    }
+    const timer = setTimeout(() => void checkDir(value), 400);
+    return () => clearTimeout(timer);
+  }, [dir, checkDir]);
+
   // ── Seed the form from the remote probe (once per host) ───────
   useEffect(() => {
     if (!remote) return;
@@ -147,12 +137,10 @@ export default function InstallPage({
     if (seededFor.current === key) return;
     seededFor.current = key;
 
-    const suggested = remote.install_dir || "~/.mho";
-    setDir(suggested);
+    setDir(remote.install_dir || "~/.mho");
 
-    // Detect the best target. When the detected triple has no published
-    // bundle, keep the same architecture if possible instead of offering a
-    // bundle that cannot run on the remote host.
+    // When the detected triple has no published bundle, keep the same
+    // architecture if possible instead of offering one that cannot run.
     const arch = remote.target.split("-")[0];
     let preferred = "";
     if (remote.target_supported) {
@@ -163,9 +151,7 @@ export default function InstallPage({
       preferred = options.target;
     }
     setTarget(preferred || targets[0]);
-
-    void checkDir(suggested);
-  }, [remote, options?.target, targets, checkDir]);
+  }, [remote, options?.target, targets]);
 
   // ── Keep a valid target when nothing is detected yet ──────────
   useEffect(() => {
@@ -189,13 +175,15 @@ export default function InstallPage({
         proxy,
       });
       setReport(result);
-      onInstalled(result.path);
+      // Patching the store flips the tab from "Install (required)" to
+      // "Install", persists the new path and requests a confirming probe.
+      markInstalled(result.path);
     } catch (e) {
       setInstallError(String(e));
     } finally {
       setInstalling(false);
     }
-  }, [dir, target, proxy, sshConfig, onInstalled]);
+  }, [dir, target, proxy, sshConfig, markInstalled]);
 
   const handleCancel = useCallback(async () => {
     try {
@@ -208,201 +196,146 @@ export default function InstallPage({
   // ── Derived state ─────────────────────────────────────────────
   const dirUsable = !!dirStatus && (dirStatus.writable || dirStatus.creatable);
   const canInstall = !installing && !!dir.trim() && !!target && (dirStatus === null || dirUsable);
+  const unsupported = !!remote && !remote.target_supported;
+
+  let dirLabel = "";
+  if (dirStatus) {
+    const state = dirStatus.writable
+      ? "writable"
+      : dirStatus.creatable
+        ? "can be created"
+        : "not writable";
+    dirLabel = dirStatus.space_known
+      ? `${state} · ${formatBytes(dirStatus.available_bytes)} free`
+      : state;
+  }
 
   return (
     <Box sx={{ flex: 1, minHeight: 0, overflow: "auto", px: 2, py: 2 }}>
-      {/* ── Remote status ─────────────────────────────── */}
-      <Stack direction="row" sx={{ alignItems: "center", mb: 1 }}>
-        <Typography variant="overline" color="text.secondary" sx={{ flex: 1 }}>
-          Remote host
-        </Typography>
+      {/* ── Remote host summary ───────────────────────── */}
+      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 2 }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          {remote ? (
+            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+              {remote.mho_exists ? (
+                <CheckCircle color="success" sx={{ fontSize: 16 }} />
+              ) : (
+                <WarningAmber color="warning" sx={{ fontSize: 16 }} />
+              )}
+              <Typography variant="body2" color="text.secondary" noWrap>
+                {remote.user}@{remote.os.toLowerCase()} ({remote.arch})
+                {remote.mho_exists
+                  ? ` · ${remote.mho_version ?? remote.mho_resolved}`
+                  : ` · mho not found (${mhoPath})`}
+              </Typography>
+            </Stack>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              Remote host
+            </Typography>
+          )}
+        </Box>
         {probing ? (
           <CircularProgress size={16} />
         ) : (
-          <Button
-            size="small"
-            startIcon={<Refresh sx={{ fontSize: 16 }} />}
-            onClick={onRefresh}
-            sx={{ textTransform: "none" }}
-          >
-            Refresh
-          </Button>
+          <IconButton size="small" onClick={() => void probe()} title="Refresh">
+            <Refresh sx={{ fontSize: 18 }} />
+          </IconButton>
         )}
       </Stack>
 
       {probeError && (
-        <Alert severity="error" sx={{ mb: 1.5 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
           {probeError}
         </Alert>
       )}
 
-      {remote && (
-        <Paper variant="outlined" sx={{ p: 1.5, mb: 2 }}>
-          <Stack spacing={0.5}>
-            <Typography variant="body2" color="text.secondary">
-              {remote.user}@{remote.os.toLowerCase()} ({remote.arch}) · target{" "}
-              <Box component="span" sx={{ fontFamily: "monospace" }}>
-                {remote.target}
-              </Box>
-            </Typography>
-            {remote.mho_exists ? (
-              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                <CheckCircle color="success" sx={{ fontSize: 16 }} />
-                <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
-                  {remote.mho_resolved}
-                </Typography>
-                {remote.mho_version && (
-                  <Typography variant="caption" color="text.secondary">
-                    {remote.mho_version}
-                  </Typography>
-                )}
-              </Stack>
-            ) : (
-              <Typography variant="body2" color="warning.main">
-                mho was not found at “{mhoPath}”. Install it below, then switch to the Terminal tab.
-              </Typography>
-            )}
-          </Stack>
-        </Paper>
-      )}
-
-      <Divider sx={{ mb: 2 }} />
-
-      {/* ── Install form ──────────────────────────────── */}
       <Stack spacing={2}>
+        {/* ── Directory ─────────────────────────────── */}
         <Box>
-          <Typography variant="overline" color="text.secondary">
-            Installation
-          </Typography>
-          <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start" }}>
-            <TextField
-              label="Install directory"
-              value={dir}
-              onChange={(e) => {
-                setDir(e.target.value);
-                setDirStatus(null);
-                setDirError("");
-              }}
-              placeholder="~/.mho"
-              size="small"
-              slotProps={{
-                htmlInput: { style: { fontFamily: "monospace", fontSize: 13 } },
-              }}
-            />
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={() => void checkDir(dir)}
-              disabled={checking || !dir.trim()}
-              startIcon={
-                checking ? <CircularProgress size={14} /> : <Storage sx={{ fontSize: 16 }} />
-              }
-              sx={{ textTransform: "none", flexShrink: 0, height: 40 }}
-            >
-              Check
-            </Button>
-          </Stack>
-
-          {/* Directory status */}
-          {dirError && (
-            <FormHelperText error sx={{ mx: 0 }}>
-              {dirError}
-            </FormHelperText>
-          )}
-          {dirStatus && !dirError && (
-            <Stack
-              direction="row"
-              spacing={1}
-              sx={{ alignItems: "center", mt: 1, flexWrap: "wrap", gap: 0.5 }}
-            >
-              <Chip
-                size="small"
-                color={dirUsable ? "success" : "error"}
-                label={
-                  dirStatus.writable
-                    ? "writable"
-                    : dirStatus.creatable
-                      ? "can be created"
-                      : "not writable"
-                }
-              />
+          <TextField
+            fullWidth
+            label="Install directory"
+            value={dir}
+            onChange={(e) => {
+              setDir(e.target.value);
+              setDirStatus(null);
+              setDirError("");
+            }}
+            placeholder="~/.mho"
+            size="small"
+            slotProps={{
+              htmlInput: { style: { fontFamily: "monospace", fontSize: 13 } },
+            }}
+          />
+          <Stack
+            direction="row"
+            spacing={0.75}
+            sx={{ alignItems: "center", mt: 0.75, minHeight: 20 }}
+          >
+            {checking && <CircularProgress size={12} />}
+            {dirStatus && !checking && (
               <Chip
                 size="small"
                 variant="outlined"
-                color={
-                  dirStatus.space_known && dirStatus.available_bytes === 0 ? "error" : "default"
-                }
-                label={
-                  dirStatus.space_known
-                    ? `free ${formatBytes(dirStatus.available_bytes)} / ${formatBytes(dirStatus.total_bytes)}`
-                    : "free space unknown"
-                }
+                color={dirUsable ? "success" : "error"}
+                label={dirLabel}
               />
-              {dirStatus.space_known &&
-                dirStatus.space_from &&
-                dirStatus.space_from !== dirStatus.dir && (
-                  <Typography variant="caption" color="text.secondary">
-                    measured on {dirStatus.space_from} (target does not exist yet)
-                  </Typography>
-                )}
-              <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>
-                {dirStatus.dir}
+            )}
+            {(dirError || dirStatus?.error) && (
+              <Typography variant="caption" color="error" noWrap>
+                {dirError || dirStatus?.error}
               </Typography>
-            </Stack>
-          )}
-          {dirStatus?.error && (
-            <FormHelperText error sx={{ mx: 0 }}>
-              {dirStatus.error}
-            </FormHelperText>
-          )}
+            )}
+          </Stack>
         </Box>
 
-        <FormControl size="small" fullWidth>
-          <InputLabel>Target</InputLabel>
-          <Select
-            label="Target"
-            value={target}
-            onChange={(e) => setTarget(e.target.value)}
-            sx={{ fontFamily: "monospace", fontSize: 13 }}
-          >
-            {targets.map((value) => (
-              <MenuItem key={value} value={value} dense sx={{ fontFamily: "monospace" }}>
-                {value}
-                {remote?.target === value ? "  (detected)" : ""}
-              </MenuItem>
-            ))}
-          </Select>
-          <FormHelperText>
-            {remote && !remote.target_supported ? (
-              <>
-                Detected <code>{remote.target}</code> has no published bundle — pick another target,
-                or build mho for it manually.
-              </>
-            ) : (
-              "Rust target triple for the remote machine. The detected value is preselected."
-            )}
-          </FormHelperText>
-        </FormControl>
+        {/* ── Target + proxy ────────────────────────── */}
+        <Stack direction="row" spacing={1.5}>
+          <FormControl size="small" sx={{ flex: 2 }}>
+            <InputLabel>Target</InputLabel>
+            <Select
+              label="Target"
+              value={target}
+              onChange={(e) => setTarget(e.target.value)}
+              sx={{ fontFamily: "monospace", fontSize: 13 }}
+            >
+              {targets.map((value) => (
+                <MenuItem key={value} value={value} dense sx={{ fontFamily: "monospace" }}>
+                  {value}
+                  {remote?.target === value ? "  (detected)" : ""}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ flex: 1 }}>
+            <InputLabel>Proxy</InputLabel>
+            <Select
+              label="Proxy"
+              value={proxy}
+              onChange={(e) => setProxy(e.target.value as InstallProxy)}
+            >
+              {PROXY_OPTIONS.map((option) => (
+                <MenuItem
+                  key={option.id}
+                  value={option.id}
+                  dense
+                  disabled={!option.supportsRelease}
+                >
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Stack>
+        {unsupported && (
+          <Typography variant="caption" color="warning.main">
+            No bundle is published for {remote?.target} — pick another target.
+          </Typography>
+        )}
 
-        <FormControl size="small" fullWidth>
-          <InputLabel>Download proxy</InputLabel>
-          <Select
-            label="Download proxy"
-            value={proxy}
-            onChange={(e) => setProxy(e.target.value as InstallProxy)}
-          >
-            {PROXY_OPTIONS.map((option) => (
-              <MenuItem key={option.id} value={option.id} dense disabled={!option.supportsRelease}>
-                {option.label}
-                {!option.supportsRelease ? " — release assets unsupported" : ""}
-              </MenuItem>
-            ))}
-          </Select>
-          <FormHelperText>Mirror used to download the GitHub release archive.</FormHelperText>
-        </FormControl>
-
-        {/* Actions */}
-        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+        {/* ── Actions ───────────────────────────────── */}
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
           {installing ? (
             <Button
               variant="outlined"
@@ -420,24 +353,18 @@ export default function InstallPage({
               startIcon={<Download />}
               sx={{ textTransform: "none" }}
             >
-              Install mho-full
+              Install mho
             </Button>
           )}
           {installing && <CircularProgress size={18} />}
-          {installing && (
-            <Typography variant="caption" color="text.secondary">
-              Downloading, then writing to the remote host…
-            </Typography>
-          )}
         </Stack>
 
         {report && !installing && (
           <Alert severity="success" icon={<CheckCircle fontSize="inherit" />}>
-            Installed. Terminal commands will use{" "}
+            Installed to{" "}
             <Box component="span" sx={{ fontFamily: "monospace" }}>
               {report.path}
             </Box>
-            .
           </Alert>
         )}
 

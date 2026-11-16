@@ -24,7 +24,8 @@
     "@tauri-apps/plugin-opener": "catalog:",
     "@tauri-apps/plugin-os": "catalog:",
     "react": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "zustand": "catalog:"
   },
   "devDependencies": {
     "@tauri-apps/cli": "catalog:",
@@ -37,6 +38,7 @@
     "vite": "catalog:"
   },
   "catalog": {
+    "zustand": "^5.1.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^9.5.0",

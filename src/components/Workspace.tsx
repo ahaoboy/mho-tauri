@@ -5,46 +5,17 @@ import { Download, Terminal } from "@mui/icons-material";
 import Dashboard from "./Dashboard";
 import DashboardHeader from "./DashboardHeader";
 import InstallPage from "./InstallPage";
-import type { RemoteInfo, SshConfig, WorkspaceTab } from "../types";
-
-// ── Props ────────────────────────────────────────────────────────────────
-
-interface WorkspaceProps {
-  username: string;
-  host: string;
-  port: string;
-  mhoPath: string;
-  sshConfig: SshConfig;
-  onDisconnect: () => void;
-
-  activeTab: WorkspaceTab;
-  onTabChange: (tab: WorkspaceTab) => void;
-
-  remote: RemoteInfo | null;
-  probing: boolean;
-  probeError: string;
-  onRefresh: () => void;
-  /** Called with the installed binary path after a successful install. */
-  onInstalled: (installedPath: string) => void;
-}
+import { useStore } from "../store";
+import type { WorkspaceTab } from "../types";
 
 // ── Component ────────────────────────────────────────────────────────────
 
-export default function Workspace({
-  username,
-  host,
-  port,
-  mhoPath,
-  sshConfig,
-  onDisconnect,
-  activeTab,
-  onTabChange,
-  remote,
-  probing,
-  probeError,
-  onRefresh,
-  onInstalled,
-}: WorkspaceProps) {
+export default function Workspace() {
+  const activeTab = useStore((s) => s.activeTab);
+  const setActiveTab = useStore((s) => s.setActiveTab);
+  const remote = useStore((s) => s.remote);
+  const probing = useStore((s) => s.probing);
+
   const mhoMissing = remote !== null && !remote.mho_exists;
 
   return (
@@ -57,17 +28,11 @@ export default function Workspace({
         pb: "var(--safe-area-bottom)",
       }}
     >
-      <DashboardHeader
-        username={username}
-        host={host}
-        port={port}
-        mhoPath={mhoPath}
-        onDisconnect={onDisconnect}
-      />
+      <DashboardHeader />
 
       <Tabs
         value={activeTab}
-        onChange={(_event, value: WorkspaceTab) => onTabChange(value)}
+        onChange={(_event, value: WorkspaceTab) => setActiveTab(value)}
         variant="fullWidth"
         sx={{
           minHeight: 40,
@@ -108,23 +73,9 @@ export default function Workspace({
           <CircularProgress size={28} />
         </Box>
       ) : activeTab === "terminal" ? (
-        <Dashboard
-          username={username}
-          host={host}
-          port={port}
-          mhoPath={mhoPath}
-          sshConfig={sshConfig}
-        />
+        <Dashboard />
       ) : (
-        <InstallPage
-          sshConfig={sshConfig}
-          mhoPath={mhoPath}
-          remote={remote}
-          probing={probing}
-          probeError={probeError}
-          onRefresh={onRefresh}
-          onInstalled={onInstalled}
-        />
+        <InstallPage />
       )}
     </Box>
   );
