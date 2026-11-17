@@ -3,12 +3,14 @@
 import { useState, useCallback } from "react";
 import { AppBar, Box, IconButton, Toolbar, Typography } from "@mui/material";
 import { Terminal, Logout } from "@mui/icons-material";
+import { useTranslation } from "react-i18next";
 import { useTerminalTheme } from "../hooks/useTerminalTheme";
 import { useStore } from "../store";
 
 // ── Component ────────────────────────────────────────────────────────────
 
 export default function DashboardHeader() {
+  const { t } = useTranslation();
   const username = useStore((s) => s.username);
   const host = useStore((s) => s.host);
   const port = useStore((s) => s.port);
@@ -49,7 +51,7 @@ export default function DashboardHeader() {
           color="text.secondary"
           noWrap
           onClick={handleCopy}
-          title={`${connectionString} — ${mhoPath} — click to copy`}
+          title={t("dashboard.copyHint", { connection: connectionString, path: mhoPath })}
           sx={{
             flex: 1,
             fontFamily: "monospace",
@@ -60,7 +62,7 @@ export default function DashboardHeader() {
           }}
         >
           {copied ? (
-            "Copied!"
+            t("dashboard.copied")
           ) : (
             <>
               {connectionString}
@@ -71,7 +73,12 @@ export default function DashboardHeader() {
           )}
         </Typography>
 
-        <IconButton size="small" color="error" onClick={disconnect} title="Disconnect">
+        <IconButton
+          size="small"
+          color="error"
+          onClick={disconnect}
+          title={t("dashboard.disconnect")}
+        >
           <Logout sx={{ fontSize: 18 }} />
         </IconButton>
       </Toolbar>

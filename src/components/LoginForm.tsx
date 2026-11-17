@@ -27,14 +27,17 @@ import {
   Delete,
   Terminal,
 } from "@mui/icons-material";
+import { useTranslation } from "react-i18next";
 import type { AuthMethod } from "../types";
 import { normalizePrivateKey } from "../utils/keyNormalizer";
 import { parseSshInput } from "../utils/sshParser";
 import { useStore } from "../store";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 // ── Component ────────────────────────────────────────────────────────────
 
 export default function LoginForm() {
+  const { t } = useTranslation();
   const label = useStore((s) => s.label);
   const host = useStore((s) => s.host);
   const port = useStore((s) => s.port);
@@ -100,8 +103,24 @@ export default function LoginForm() {
         p: 2,
         pt: "calc(var(--safe-area-top) + 16px)",
         pb: "calc(var(--safe-area-bottom) + 16px)",
+        position: "relative",
       }}
     >
+      {/* ── Language switcher (top right) ───────────── */}
+      <Box
+        sx={{
+          position: "absolute",
+          // `env()` with a fallback works even when the `--safe-area-*`
+          // variables are not defined (an invalid `calc()` would fall back
+          // to `top: auto` and the button would sit mid-page).
+          top: "calc(env(safe-area-inset-top, 0px) + 8px)",
+          right: "calc(env(safe-area-inset-right, 0px) + 8px)",
+          zIndex: 1,
+        }}
+      >
+        <LanguageSwitcher />
+      </Box>
+
       <Paper
         elevation={isNarrow ? 0 : 3}
         sx={{
@@ -129,10 +148,10 @@ export default function LoginForm() {
 
         {/* ── Saved configs quick-select ─────────────── */}
         <FormControl size="small" fullWidth sx={{ mb: 2 }}>
-          <InputLabel>Saved Configurations</InputLabel>
+          <InputLabel>{t("login.savedConfigs")}</InputLabel>
           <Select
             value={selectedConfigId}
-            label="Saved Configurations"
+            label={t("login.savedConfigs")}
             onChange={(e) => {
               const id = e.target.value;
               if (id === "__new__") {
@@ -145,12 +164,12 @@ export default function LoginForm() {
           >
             <MenuItem value="__new__" dense>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "primary.main" }}>
-                + New config
+                {t("login.newConfig")}
               </Box>
             </MenuItem>
             {savedConfigs.length === 0 ? (
               <MenuItem disabled dense>
-                <em>No saved configs</em>
+                <em>{t("login.noSavedConfigs")}</em>
               </MenuItem>
             ) : (
               savedConfigs.map((cfg) => (
@@ -173,8 +192,8 @@ export default function LoginForm() {
         >
           {/* Config name */}
           <TextField
-            label="Config Name"
-            placeholder="my-server"
+            label={t("login.configName")}
+            placeholder={t("login.configNamePlaceholder")}
             value={label}
             onChange={(e) => setField("label", e.target.value)}
           />
@@ -182,15 +201,15 @@ export default function LoginForm() {
           {/* Host + Port */}
           <Box sx={{ display: "flex", gap: 1.5 }}>
             <TextField
-              label="Host"
-              placeholder="192.168.1.1"
+              label={t("login.host")}
+              placeholder={t("login.hostPlaceholder")}
               value={host}
               onChange={(e) => setField("host", e.target.value)}
               required
               sx={{ flex: 2 }}
             />
             <TextField
-              label="Port"
+              label={t("login.port")}
               type="number"
               value={port}
               onChange={(e) => setField("port", e.target.value)}
@@ -201,8 +220,8 @@ export default function LoginForm() {
 
           {/* Username */}
           <TextField
-            label="Username"
-            placeholder="root"
+            label={t("login.username")}
+            placeholder={t("login.usernamePlaceholder")}
             value={username}
             onChange={(e) => setField("username", e.target.value)}
             required
@@ -210,21 +229,21 @@ export default function LoginForm() {
 
           {/* Auth method */}
           <FormControl>
-            <InputLabel>Authentication</InputLabel>
+            <InputLabel>{t("login.authentication")}</InputLabel>
             <Select
               value={authMethod}
-              label="Authentication"
+              label={t("login.authentication")}
               onChange={(e) => {
                 setAuthMethod(e.target.value as AuthMethod);
               }}
             >
               <MenuItem value="password">
                 <Password sx={{ mr: 1, fontSize: 18 }} />
-                Password
+                {t("login.password")}
               </MenuItem>
               <MenuItem value="privateKey">
                 <Key sx={{ mr: 1, fontSize: 18 }} />
-                Private Key
+                {t("login.privateKey")}
               </MenuItem>
             </Select>
           </FormControl>
@@ -232,11 +251,11 @@ export default function LoginForm() {
           {/* Password / Private Key */}
           {authMethod === "password" ? (
             <TextField
-              label="Password"
+              label={t("login.password")}
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setField("password", e.target.value)}
-              placeholder="••••••••"
+              placeholder={t("login.passwordPlaceholder")}
               slotProps={{
                 htmlInput: { "data-raw-paste": "" },
                 input: {
@@ -257,14 +276,14 @@ export default function LoginForm() {
             />
           ) : (
             <TextField
-              label="Private Key"
+              label={t("login.privateKey")}
               multiline
               minRows={4}
               maxRows={8}
               value={privateKey}
               onChange={(e) => setField("privateKey", e.target.value)}
               onBlur={handlePrivateKeyBlur}
-              placeholder="-----BEGIN OPENSSH PRIVATE KEY-----\n..."
+              placeholder={t("login.privateKeyPlaceholder")}
               slotProps={{
                 htmlInput: {
                   "data-raw-paste": "",
@@ -276,11 +295,11 @@ export default function LoginForm() {
 
           {/* Mho binary path */}
           <TextField
-            label="Mho Binary Path"
+            label={t("login.mhoPath")}
             value={mhoPath}
             onChange={(e) => setField("mhoPath", e.target.value)}
             placeholder="mho"
-            helperText="Path to the mho binary on the remote host"
+            helperText={t("login.mhoPathHelper")}
             slotProps={{
               input: {
                 startAdornment: (
@@ -310,11 +329,11 @@ export default function LoginForm() {
                 startIcon={<CircularProgress size={16} color="inherit" />}
                 sx={{ flex: 2 }}
               >
-                Cancel
+                {t("login.cancel")}
               </Button>
             ) : (
               <Button type="submit" variant="contained" disabled={!canConnect} sx={{ flex: 2 }}>
-                Connect
+                {t("login.connect")}
               </Button>
             )}
             <Button
@@ -322,7 +341,7 @@ export default function LoginForm() {
               color="primary"
               onClick={saveCurrentConfig}
               disabled={!canConnect || connecting}
-              title="Save current config"
+              title={t("login.saveCurrentConfig")}
               sx={{ minWidth: 40, px: 1 }}
             >
               <Save fontSize="small" />
@@ -333,7 +352,7 @@ export default function LoginForm() {
                 color="error"
                 onClick={() => removeConfig(selectedConfigId)}
                 disabled={connecting}
-                title="Delete selected config"
+                title={t("login.deleteSelectedConfig")}
                 sx={{ minWidth: 40, px: 1 }}
               >
                 <Delete fontSize="small" />

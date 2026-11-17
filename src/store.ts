@@ -11,6 +11,7 @@ import { homeDir, join } from "@tauri-apps/api/path";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { isMobile } from "./utils/platform";
 import { normalizePrivateKey } from "./utils/keyNormalizer";
+import i18n from "./i18n";
 import {
   deleteConfig,
   generateConfigId,
@@ -258,12 +259,17 @@ export const useStore = create<Store>((set, get) => {
           const raw = await readTextFile(await expandHome(parsed.privateKeyPath));
           const normalized = normalizePrivateKey(raw);
           if (!normalized) {
-            set({ error: `Unrecognized private key format: ${parsed.privateKeyPath}` });
+            set({ error: i18n.t("login.unrecognizedKey", { path: parsed.privateKeyPath }) });
             return;
           }
           set(patchForm({ privateKey: normalized }));
         } catch (e) {
-          set({ error: `Failed to read ${parsed.privateKeyPath}: ${e}` });
+          set({
+            error: i18n.t("login.failedToReadKey", {
+              path: parsed.privateKeyPath,
+              error: String(e),
+            }),
+          });
         }
         return;
       }
@@ -298,10 +304,8 @@ export const useStore = create<Store>((set, get) => {
           set({ error: "" });
         } else {
           const hint =
-            isMobile() && /timed out/i.test(message)
-              ? '\n\nAndroid 17+: allow the "Nearby devices" (local network) permission for MHO, then retry.'
-              : "";
-          set({ error: message + hint });
+            isMobile() && /timed out/i.test(message) ? i18n.t("login.androidPermission") : "";
+          set({ error: hint ? `${message}\n\n${hint}` : message });
         }
       } finally {
         set({ connecting: false });

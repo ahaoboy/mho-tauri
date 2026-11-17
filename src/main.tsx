@@ -5,6 +5,8 @@ import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "@mui/material/styles";
 import { useMediaQuery } from "@mui/material";
 import { createAppTheme } from "./theme";
+import "./i18n";
+import "./App.css";
 import App from "./App";
 
 /**

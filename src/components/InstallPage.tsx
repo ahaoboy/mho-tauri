@@ -19,6 +19,7 @@ import {
   Typography,
 } from "@mui/material";
 import { CheckCircle, Download, Refresh, WarningAmber } from "@mui/icons-material";
+import { useTranslation } from "react-i18next";
 import { useStore } from "../store";
 import type {
   DirStatus,
@@ -46,10 +47,7 @@ const PROXY_OPTIONS: { id: InstallProxy; label: string }[] = [
 /** Proxies that can serve release assets. */
 const RELEASE_PROXIES: ReadonlySet<InstallProxy> = new Set(["github", "gh-proxy", "xget"]);
 
-const SOURCE_OPTIONS: { id: InstallSource; label: string }[] = [
-  { id: "repo", label: "Repo (main)" },
-  { id: "release", label: "Release (nightly)" },
-];
+const SOURCE_OPTIONS: InstallSource[] = ["repo", "release"];
 
 /** Fallback list when the backend has not answered yet (mho-full assets). */
 const FALLBACK_TARGETS = [
@@ -78,6 +76,7 @@ function formatBytes(bytes: number): string {
 // ── Component ────────────────────────────────────────────────────────────
 
 export default function InstallPage() {
+  const { t } = useTranslation();
   const sshConfig = useStore((s) => s.sshConfig);
   const host = useStore((s) => s.host);
   const mhoPath = useStore((s) => s.mhoPath);
@@ -230,12 +229,12 @@ export default function InstallPage() {
   let dirLabel = "";
   if (dirStatus) {
     const state = dirStatus.writable
-      ? "writable"
+      ? t("install.writable")
       : dirStatus.creatable
-        ? "can be created"
-        : "not writable";
+        ? t("install.creatable")
+        : t("install.notWritable");
     dirLabel = dirStatus.space_known
-      ? `${state} · ${formatBytes(dirStatus.available_bytes)} free`
+      ? t("install.freeSpace", { state, size: formatBytes(dirStatus.available_bytes) })
       : state;
   }
 
@@ -253,7 +252,11 @@ export default function InstallPage() {
               />
             </Tooltip>
             <Tooltip
-              title={remote.mho_exists ? (remote.mho_resolved ?? "") : `not found at ${mhoPath}`}
+              title={
+                remote.mho_exists
+                  ? (remote.mho_resolved ?? "")
+                  : t("install.notFoundAt", { path: mhoPath })
+              }
             >
               <Chip
                 size="small"
@@ -268,22 +271,23 @@ export default function InstallPage() {
                 }
                 label={
                   remote.mho_exists
-                    ? (remote.mho_version?.replace(/^mho\s+/i, "") ?? "installed")
-                    : "not installed"
+                    ? (remote.mho_version?.replace(/^mho\s+/i, "") ??
+                      t("install.installedFallback"))
+                    : t("install.notInstalled")
                 }
               />
             </Tooltip>
           </>
         ) : (
           <Typography variant="body2" color="text.secondary">
-            Remote host
+            {t("install.remoteHost")}
           </Typography>
         )}
         <Box sx={{ flex: 1 }} />
         {probing ? (
           <CircularProgress size={16} />
         ) : (
-          <IconButton size="small" onClick={() => void probe()} title="Refresh">
+          <IconButton size="small" onClick={() => void probe()} title={t("install.refresh")}>
             <Refresh sx={{ fontSize: 18 }} />
           </IconButton>
         )}
@@ -300,7 +304,7 @@ export default function InstallPage() {
         <Box>
           <TextField
             fullWidth
-            label="Install directory"
+            label={t("install.directory")}
             value={dir}
             onChange={(e) => {
               setDir(e.target.value);
@@ -338,9 +342,9 @@ export default function InstallPage() {
         {/* ── Target / source / proxy (stacked on phones) ────── */}
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
           <FormControl size="small" sx={{ flex: 2, width: "100%" }}>
-            <InputLabel>Target</InputLabel>
+            <InputLabel>{t("install.target")}</InputLabel>
             <Select
-              label="Target"
+              label={t("install.target")}
               value={target}
               onChange={(e) => setTarget(e.target.value)}
               renderValue={(value) => value}
@@ -349,15 +353,15 @@ export default function InstallPage() {
               {targets.map((value) => (
                 <MenuItem key={value} value={value} dense sx={{ fontFamily: "monospace" }}>
                   {value}
-                  {remote?.target === value ? "  (detected)" : ""}
+                  {remote?.target === value ? `  ${t("install.detected")}` : ""}
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
           <FormControl size="small" sx={{ flex: 1, width: "100%" }}>
-            <InputLabel>Source</InputLabel>
+            <InputLabel>{t("install.source")}</InputLabel>
             <Select
-              label="Source"
+              label={t("install.source")}
               value={source}
               onChange={(e) => {
                 const next = e.target.value as InstallSource;
@@ -366,17 +370,17 @@ export default function InstallPage() {
                 if (next === "release" && !RELEASE_PROXIES.has(proxy)) setProxy("github");
               }}
             >
-              {SOURCE_OPTIONS.map((option) => (
-                <MenuItem key={option.id} value={option.id} dense>
-                  {option.label}
+              {SOURCE_OPTIONS.map((id) => (
+                <MenuItem key={id} value={id} dense>
+                  {t(id === "repo" ? "install.sourceRepo" : "install.sourceRelease")}
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
           <FormControl size="small" sx={{ flex: 1, width: "100%" }}>
-            <InputLabel>Proxy</InputLabel>
+            <InputLabel>{t("install.proxy")}</InputLabel>
             <Select
-              label="Proxy"
+              label={t("install.proxy")}
               value={proxy}
               onChange={(e) => setProxy(e.target.value as InstallProxy)}
             >
@@ -393,12 +397,12 @@ export default function InstallPage() {
         </Stack>
         {unsupported && (
           <Typography variant="caption" color="warning.main">
-            No bundle is published for {remote?.target} — pick another target.
+            {t("install.unsupportedTarget", { target: remote?.target })}
           </Typography>
         )}
         {source === "release" && (
           <Typography variant="caption" color="text.secondary">
-            Release assets cannot be served by jsDelivr or Statically.
+            {t("install.releaseProxyHint")}
           </Typography>
         )}
 
@@ -411,7 +415,7 @@ export default function InstallPage() {
               onClick={handleCancel}
               sx={{ textTransform: "none", width: { xs: "100%", sm: "auto" } }}
             >
-              Cancel
+              {t("install.cancel")}
             </Button>
           ) : (
             <Button
@@ -421,7 +425,7 @@ export default function InstallPage() {
               startIcon={<Download />}
               sx={{ textTransform: "none", width: { xs: "100%", sm: "auto" } }}
             >
-              Install mho
+              {t("install.install")}
             </Button>
           )}
           {installing && <CircularProgress size={18} />}
@@ -429,7 +433,7 @@ export default function InstallPage() {
 
         {report && !installing && (
           <Alert severity="success" icon={<CheckCircle fontSize="inherit" />}>
-            Installed ·{" "}
+            {t("install.installed")} ·{" "}
             <Box component="span" sx={{ fontFamily: "monospace", wordBreak: "break-all" }}>
               {report.path}
             </Box>

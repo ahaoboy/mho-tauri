@@ -2,6 +2,7 @@
 
 import { Box, CircularProgress, LinearProgress, Tab, Tabs } from "@mui/material";
 import { Download, Terminal } from "@mui/icons-material";
+import { useTranslation } from "react-i18next";
 import Dashboard from "./Dashboard";
 import DashboardHeader from "./DashboardHeader";
 import InstallPage from "./InstallPage";
@@ -11,6 +12,7 @@ import type { WorkspaceTab } from "../types";
 // ── Component ────────────────────────────────────────────────────────────
 
 export default function Workspace() {
+  const { t } = useTranslation();
   const activeTab = useStore((s) => s.activeTab);
   const setActiveTab = useStore((s) => s.setActiveTab);
   const remote = useStore((s) => s.remote);
@@ -43,13 +45,13 @@ export default function Workspace() {
       >
         <Tab
           value="terminal"
-          label="Terminal"
+          label={t("workspace.terminal")}
           icon={<Terminal sx={{ fontSize: 18 }} />}
           iconPosition="start"
         />
         <Tab
           value="install"
-          label={mhoMissing ? "Install (required)" : "Install"}
+          label={mhoMissing ? t("workspace.installRequired") : t("workspace.install")}
           icon={<Download sx={{ fontSize: 18 }} />}
           iconPosition="start"
           sx={mhoMissing ? { color: "warning.main" } : undefined}

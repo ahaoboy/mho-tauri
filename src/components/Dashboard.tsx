@@ -39,6 +39,7 @@ import {
   isUrlCommand,
 } from "../types";
 import { useStore } from "../store";
+import { useTranslation } from "react-i18next";
 
 // ── Command definitions (extensible, single source of truth) ─────────────
 
@@ -88,6 +89,7 @@ function linkify(text: string): React.ReactNode[] {
 // ── Component ────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const mhoPath = useStore((s) => s.mhoPath);
   const sshConfig = useStore((s) => s.sshConfig);
 
@@ -166,9 +168,9 @@ export default function Dashboard() {
     lines.push(`$ mho ${cmd.args.join(" ")}`);
     if (state.output.stdout) lines.push(state.output.stdout.trimEnd());
     if (state.output.stderr) lines.push(`[stderr] ${state.output.stderr.trimEnd()}`);
-    lines.push(`[exit: ${state.output.exit_code}]`);
+    lines.push(`[${t("dashboard.exit")}: ${state.output.exit_code}]`);
     await navigator.clipboard.writeText(lines.join("\n"));
-  }, [commandStates, selectedCmdId]);
+  }, [commandStates, selectedCmdId, t]);
 
   // ── Auto-scroll output ────────────────────────────────────────
   useEffect(() => {
@@ -208,15 +210,15 @@ export default function Dashboard() {
       <Box sx={{ px: 2, pt: 2, pb: 1 }}>
         <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
           <FormControl size="small" sx={{ flex: 1, minWidth: 0 }}>
-            <InputLabel>Command</InputLabel>
+            <InputLabel>{t("dashboard.command")}</InputLabel>
             <Select
               value={selectedCmdId}
-              label="Command"
+              label={t("dashboard.command")}
               onChange={(e) => setSelectedCmdId(e.target.value)}
             >
               {MHO_COMMANDS.map((cmd) => (
                 <MenuItem key={cmd.id} value={cmd.id} dense>
-                  {cmd.label}
+                  {t(`dashboard.commands.${cmd.id}`)}
                 </MenuItem>
               ))}
             </Select>
@@ -229,7 +231,7 @@ export default function Dashboard() {
               onClick={handleCancelCommand}
               sx={{ textTransform: "none", flexShrink: 0 }}
             >
-              Cancel
+              {t("dashboard.cancel")}
             </Button>
           ) : (
             <Button
@@ -247,7 +249,7 @@ export default function Dashboard() {
               startIcon={CMD_ICONS[selectedCmdId] ?? <Settings />}
               sx={{ textTransform: "none", flexShrink: 0 }}
             >
-              Run
+              {t("dashboard.run")}
             </Button>
           )}
           <Box
@@ -313,10 +315,10 @@ export default function Dashboard() {
       >
         <Stack direction="row" sx={{ alignItems: "center", mb: 1 }}>
           <Typography variant="overline" color="text.secondary" sx={{ flex: 1 }}>
-            Output
+            {t("dashboard.output")}
           </Typography>
           {hasOutput && (
-            <Tooltip title="Copy all output">
+            <Tooltip title={t("dashboard.copyAllOutput")}>
               <IconButton size="small" onClick={handleCopyOutput}>
                 <ContentCopy sx={{ fontSize: 16 }} />
               </IconButton>
@@ -344,7 +346,7 @@ export default function Dashboard() {
             if (!state || (state.status === "idle" && !state.output && !state.error)) {
               return (
                 <Typography component="div" sx={{ color: "#808080", fontFamily: "inherit" }}>
-                  Click a command above to execute it. Output will appear here.
+                  {t("dashboard.outputPlaceholder")}
                 </Typography>
               );
             }
@@ -366,7 +368,7 @@ export default function Dashboard() {
                     component="div"
                     sx={{ color: "#808080", fontStyle: "italic", fontFamily: "inherit" }}
                   >
-                    Executing...
+                    {t("dashboard.executing")}
                   </Box>
                 )}
                 {state.output && (
@@ -408,13 +410,13 @@ export default function Dashboard() {
                         mt: 0.25,
                       }}
                     >
-                      [exit: {state.output.exit_code}]
+                      [{t("dashboard.exit")}: {state.output.exit_code}]
                     </Box>
                   </>
                 )}
                 {state.error && (
                   <Box component="div" sx={{ color: "#f44747", fontFamily: "inherit", mt: 0.25 }}>
-                    Error: {state.error}
+                    {t("dashboard.error", { message: state.error })}
                   </Box>
                 )}
               </Box>
