@@ -400,6 +400,22 @@ export default function InstallPage() {
             {t("install.unsupportedTarget", { target: remote?.target })}
           </Typography>
         )}
+        {/* Advisory only: `ei` performs the authoritative space check with the
+            real extracted file list, so a tight-but-workable directory must
+            not be blocked here. */}
+        {dirStatus?.space_warning && (
+          <Alert severity="warning" sx={{ py: 0.5 }}>
+            {dirStatus.space_warning}
+          </Alert>
+        )}
+        {/* Advisory only: `ei` performs the authoritative space check with the
+            real extracted file list, so a tight-but-workable directory must
+            not be blocked here. */}
+        {dirStatus?.space_warning && (
+          <Alert severity="warning" sx={{ py: 0.5 }}>
+            {dirStatus.space_warning}
+          </Alert>
+        )}
         {source === "release" && (
           <Typography variant="caption" color="text.secondary">
             {t("install.releaseProxyHint")}

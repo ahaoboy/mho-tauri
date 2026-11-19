@@ -38,8 +38,12 @@ const BINARY: &str = "mho";
 /// Warm-up budget for the whole install (download + upload to the remote).
 const INSTALL_TIMEOUT_SECS: u64 = 900;
 
-/// Space that must be free before starting; the bundle is ~20 MB and the
-/// extracted binary a few MB more.
+/// Free space a fresh install is expected to need; the bundle is ~20 MB and
+/// the extracted binary a few MB more.
+///
+/// Only used for the advisory warning — `ei` performs the authoritative check
+/// against the real extracted file list and fails with a clear error when the
+/// write genuinely does not fit.
 const BUNDLE_MIN_BYTES: u64 = 24 * 1024 * 1024;
 
 /// Targets published as `mho-full-<target>.tar.xz` in the bundle release.
@@ -141,15 +145,13 @@ pub(crate) struct DirStatus {
     pub space_known: bool,
     /// Path the space figures came from (the nearest existing ancestor).
     pub space_from: String,
+    /// Non-blocking warning about free space (e.g. "not enough for a full
+    /// install"). The install is still attempted: `ei` performs the
+    /// authoritative check with the real extracted file list and fails with a
+    /// clear error when the write really does not fit.
+    pub space_warning: Option<String>,
     /// Why the directory is unusable, when it is.
     pub error: Option<String>,
-}
-
-impl DirStatus {
-    /// Whether the directory can be written to, creating it when needed.
-    fn usable(&self) -> bool {
-        self.writable || (!self.exists && self.creatable)
-    }
 }
 
 impl From<sssh::fs::DirStatus> for DirStatus {
@@ -163,6 +165,7 @@ impl From<sssh::fs::DirStatus> for DirStatus {
             available_bytes: status.space.available_bytes,
             space_known: status.space.known,
             space_from: status.space.probe_path.to_string_lossy().into_owned(),
+            space_warning: None,
             error: status.error,
         }
     }
@@ -199,13 +202,6 @@ async fn version_of(client: &Client, path: &str) -> Option<String> {
     let version = output.stdout_lossy().trim().to_string();
     (!version.is_empty()).then_some(version)
 }
-
-/// Directories worth suggesting when the chosen one has no room.
-///
-/// Ordered roughly by how likely they are to exist and persist on a router:
-/// `/jffs` and `/data` survive reboots, `/tmp` is RAM-backed, the rest are
-/// common distro layouts.
-const SPACE_CANDIDATES: &[&str] = &["/jffs", "/data", "/opt", "/var", "/mnt", "/tmp"];
 
 /// Human readable byte size (0 renders as `0 B`, not "unknown").
 fn format_bytes(bytes: u64) -> String {
@@ -295,40 +291,94 @@ pub(crate) async fn probe(params: &ConnectParams, mho_path: &str) -> Result<Remo
 /// Inspect a candidate installation directory.
 pub(crate) async fn check_dir(params: &ConnectParams, dir: &str) -> Result<DirStatus, String> {
     let client = connect(params, 30).await?;
-    client
-        .fs()
-        .dir_status(dir)
-        .await
-        .map(DirStatus::from)
-        .map_err(|e| e.to_string())
+    let mut status = DirStatus::from(
+        client
+            .fs()
+            .dir_status(dir)
+            .await
+            .map_err(|e| e.to_string())?,
+    );
+    status.space_warning = space_warning(&client, dir, &status).await;
+    Ok(status)
 }
 
-/// Writable locations that still have room for a bundle, as `path (size free)`.
+/// Free space the install needs, given what replacing existing files frees.
 ///
-/// Only used on the failure path of [`install`], so the extra round-trips cost
-/// nothing in the normal case. One connection is reused for every candidate.
-async fn space_hints(params: &ConnectParams) -> Vec<String> {
-    let Ok(client) = connect(params, 20).await else {
-        return Vec::new();
-    };
+/// `BUNDLE_MIN_BYTES` is the worst case (no previous install). Replacing a
+/// binary frees its blocks before the new one is written, so only the
+/// difference has to fit — the same rule `easy-install` applies per file.
+fn required_bytes(reclaimed: u64) -> u64 {
+    BUNDLE_MIN_BYTES.saturating_sub(reclaimed)
+}
 
-    let mut hints = Vec::new();
-    for dir in SPACE_CANDIDATES {
-        let Ok(status) = client.fs().dir_status(dir).await else {
-            continue;
-        };
-        let status = DirStatus::from(status);
-        if status.space_known && status.available_bytes >= BUNDLE_MIN_BYTES && status.usable() {
-            hints.push(format!(
-                "{dir} ({} free)",
-                format_bytes(status.available_bytes)
-            ));
-        }
-        if hints.len() == 3 {
-            break;
+/// Bytes that reinstalling frees again: the currently installed binary.
+///
+/// The bundle is mostly the executable, so replacing an existing copy needs
+/// far less free space than a fresh install. `ei` performs the same
+/// per-file discount when it writes to the remote host — this pre-check must
+/// agree with it, or it rejects installs that would have succeeded (a 15 MB
+/// `/jffs` with an old mho already on it is the common case on routers).
+///
+/// Uses `~`-aware metadata lookups, so a relative or `~/` install dir works.
+async fn reclaimed_bytes(client: &Client, install_dir: &str) -> u64 {
+    let base = install_dir.trim_end_matches('/');
+    let mut total = 0;
+    for name in [BINARY, "mho.exe"] {
+        let path = format!("{base}/{name}");
+        if let Ok(Some(meta)) = client.fs().try_metadata(&path).await
+            && meta.is_file()
+        {
+            total += meta.len();
         }
     }
-    hints
+    total
+}
+
+/// Non-blocking space warning for `dir`, or `None` when it looks fine.
+///
+/// The estimate is `BUNDLE_MIN_BYTES` minus the existing binary (see
+/// [`reclaimed_bytes`]). It is deliberately advisory: the bundle also carries
+/// assets, so only `ei` — which knows the extracted file list after
+/// downloading — can decide for certain. The UI shows this and still allows
+/// the install, because a false positive must not block a working setup.
+async fn space_warning(
+    client: &Client,
+    install_dir: &str,
+    status: &DirStatus,
+) -> Option<String> {
+    if !status.space_known || status.available_bytes >= BUNDLE_MIN_BYTES {
+        return None;
+    }
+
+    let reclaimed = reclaimed_bytes(client, install_dir).await;
+    let required = required_bytes(reclaimed);
+    if status.available_bytes >= required {
+        return None;
+    }
+
+    // When the directory does not exist yet, the figure comes from its nearest
+    // existing ancestor (usually `/`), so name that path — otherwise the
+    // warning blames a directory that is not even there.
+    let where_ = if status.space_from.is_empty() || status.space_from == status.dir {
+        String::new()
+    } else {
+        format!(" (measured on {})", status.space_from)
+    };
+    let reclaimed_note = if reclaimed > 0 {
+        format!(
+            " Replacing the existing binary frees {}, so {} more is needed.",
+            format_bytes(reclaimed),
+            format_bytes(required),
+        )
+    } else {
+        String::new()
+    };
+
+    Some(format!(
+        "limited space for {install_dir}: {} free{where_}, about {} recommended.{reclaimed_note} The install will still be attempted.",
+        format_bytes(status.available_bytes),
+        format_bytes(required),
+    ))
 }
 
 /// Install the full mho bundle on the remote host through `ei`.
@@ -364,32 +414,18 @@ pub(crate) async fn install(
         ..Default::default()
     };
 
-    // Check space up front: writing a 20 MB bundle to a full partition fails
-    // after the whole download. `space_known` matters here — a router can
-    // legitimately report 0 bytes free.
-    if let Ok(status) = check_dir(params, install_dir).await
-        && status.space_known
-        && status.available_bytes < BUNDLE_MIN_BYTES
+    // Space is only *reported* here. `ei` owns the authoritative check: after
+    // extracting it knows the real file list, discounts files it is about to
+    // overwrite, and fails with a clear "not enough disk space" error when the
+    // write genuinely does not fit. Blocking here would reject installs that
+    // would have succeeded (e.g. a tight `/jffs` holding an old mho).
+    if let Ok(client) = connect(params, 30).await
+        && let Ok(status) = client.fs().dir_status(install_dir).await
     {
-        // When the directory does not exist yet, the figure comes from its
-        // nearest existing ancestor (usually `/`), so name that path —
-        // otherwise the message blames a directory that is not even there.
-        let where_ = if status.space_from.is_empty() || status.space_from == status.dir {
-            String::new()
-        } else {
-            format!(" (measured on {})", status.space_from)
-        };
-        let hints = space_hints(params).await;
-        let hint_text = if hints.is_empty() {
-            "No other writable filesystem has enough room either.".to_string()
-        } else {
-            format!("Try instead: {}", hints.join(", "))
-        };
-        return Err(format!(
-            "not enough space for {install_dir}: {} free{where_}, about {:.0} MB required.\n{hint_text}",
-            format_bytes(status.available_bytes),
-            BUNDLE_MIN_BYTES as f64 / 1_048_576.0,
-        ));
+        let status = DirStatus::from(status);
+        if let Some(warning) = space_warning(&client, install_dir, &status).await {
+            eprintln!("warning: {warning}");
+        }
     }
 
     // `ei` handles download, extraction (tar.xz), permissions and remote
@@ -510,5 +546,22 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// Reinstalling over an existing binary must not demand the full bundle
+    /// size again — the old copy's blocks are freed before writing.
+    #[test]
+    fn existing_binary_discounts_required_space() {
+        // Fresh install: the whole bundle must fit.
+        assert_eq!(required_bytes(0), BUNDLE_MIN_BYTES);
+
+        // Replacing a 6 MB binary leaves ~18 MB to find.
+        let six_mb = 6 * 1024 * 1024;
+        assert_eq!(required_bytes(six_mb), BUNDLE_MIN_BYTES - six_mb);
+
+        // A binary as large as the estimate needs no extra room...
+        assert_eq!(required_bytes(BUNDLE_MIN_BYTES), 0);
+        // ...and an even larger old binary never produces a negative number.
+        assert_eq!(required_bytes(BUNDLE_MIN_BYTES * 2), 0);
     }
 }

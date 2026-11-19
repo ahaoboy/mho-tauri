@@ -125,6 +125,12 @@ export interface DirStatus {
   space_known: boolean;
   /** Path the space figures came from (the nearest existing ancestor). */
   space_from: string;
+  /**
+   * Advisory note about free space. The install is still allowed: `ei` runs the
+   * authoritative check with the real extracted file list and fails clearly
+   * when the write does not fit.
+   */
+  space_warning: string | null;
   error: string | null;
 }
 
