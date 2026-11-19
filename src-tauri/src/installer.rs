@@ -414,19 +414,12 @@ pub(crate) async fn install(
         ..Default::default()
     };
 
-    // Space is only *reported* here. `ei` owns the authoritative check: after
-    // extracting it knows the real file list, discounts files it is about to
-    // overwrite, and fails with a clear "not enough disk space" error when the
-    // write genuinely does not fit. Blocking here would reject installs that
-    // would have succeeded (e.g. a tight `/jffs` holding an old mho).
-    if let Ok(client) = connect(params, 30).await
-        && let Ok(status) = client.fs().dir_status(install_dir).await
-    {
-        let status = DirStatus::from(status);
-        if let Some(warning) = space_warning(&client, install_dir, &status).await {
-            eprintln!("warning: {warning}");
-        }
-    }
+    // Space is not checked here: `check_dir` already shows an advisory warning
+    // in the UI, and `ei` owns the authoritative check — after extracting it
+    // knows the real file list, discounts files it is about to overwrite, and
+    // fails with a clear "not enough disk space" error when the write genuinely
+    // does not fit. Re-checking here would duplicate the message and cost an
+    // extra SSH round trip.
 
     // `ei` handles download, extraction (tar.xz), permissions and remote
     // deployment; the proxy is applied to the GitHub URL automatically.

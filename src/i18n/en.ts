@@ -83,6 +83,8 @@ const en = {
     install: "Install mho",
     cancel: "Cancel",
     installed: "Installed",
+    details: "Details",
+    hideDetails: "Hide",
   },
 };
 

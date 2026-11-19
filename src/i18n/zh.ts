@@ -84,6 +84,8 @@ const zh: Dictionary = {
     install: "安装 mho",
     cancel: "取消",
     installed: "已安装",
+    details: "详情",
+    hideDetails: "收起",
   },
 };
 

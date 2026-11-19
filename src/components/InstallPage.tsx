@@ -99,6 +99,8 @@ export default function InstallPage() {
   const [installing, setInstalling] = useState(false);
   const [report, setReport] = useState<InstallReport | null>(null);
   const [installError, setInstallError] = useState("");
+  /** Long error text is collapsed by default; the user expands it on demand. */
+  const [showErrorDetails, setShowErrorDetails] = useState(false);
 
   /** Guards against re-seeding the form (and clobbering user edits). */
   const seededFor = useRef("");
@@ -187,6 +189,7 @@ export default function InstallPage() {
     setInstalling(true);
     setReport(null);
     setInstallError("");
+    setShowErrorDetails(false);
 
     try {
       const result = await invoke<InstallReport>("install_mho", {
@@ -332,9 +335,31 @@ export default function InstallPage() {
               />
             )}
             {(dirError || dirStatus?.error) && (
-              <Typography variant="caption" color="error" noWrap>
-                {dirError || dirStatus?.error}
-              </Typography>
+              <Tooltip
+                title={dirError || dirStatus?.error || ""}
+                arrow
+                slotProps={{ tooltip: { sx: { maxWidth: 420, whiteSpace: "pre-wrap" } } }}
+              >
+                <Typography
+                  variant="caption"
+                  color="error"
+                  noWrap
+                  sx={{ maxWidth: 260, cursor: "help" }}
+                >
+                  {dirError || dirStatus?.error}
+                </Typography>
+              </Tooltip>
+            )}
+            {/* Space is advisory only; a full-page alert would crowd the form
+                (and duplicate the error shown when the install really fails). */}
+            {dirStatus?.space_warning && (
+              <Tooltip
+                title={dirStatus.space_warning}
+                arrow
+                slotProps={{ tooltip: { sx: { maxWidth: 420, whiteSpace: "pre-wrap" } } }}
+              >
+                <WarningAmber fontSize="small" color="warning" sx={{ cursor: "help" }} />
+              </Tooltip>
             )}
           </Stack>
         </Box>
@@ -400,22 +425,6 @@ export default function InstallPage() {
             {t("install.unsupportedTarget", { target: remote?.target })}
           </Typography>
         )}
-        {/* Advisory only: `ei` performs the authoritative space check with the
-            real extracted file list, so a tight-but-workable directory must
-            not be blocked here. */}
-        {dirStatus?.space_warning && (
-          <Alert severity="warning" sx={{ py: 0.5 }}>
-            {dirStatus.space_warning}
-          </Alert>
-        )}
-        {/* Advisory only: `ei` performs the authoritative space check with the
-            real extracted file list, so a tight-but-workable directory must
-            not be blocked here. */}
-        {dirStatus?.space_warning && (
-          <Alert severity="warning" sx={{ py: 0.5 }}>
-            {dirStatus.space_warning}
-          </Alert>
-        )}
         {source === "release" && (
           <Typography variant="caption" color="text.secondary">
             {t("install.releaseProxyHint")}
@@ -456,7 +465,37 @@ export default function InstallPage() {
           </Alert>
         )}
 
-        {installError && <Alert severity="error">{installError}</Alert>}
+        {installError && (
+          <Alert
+            severity="error"
+            sx={{ py: 0.25, "& .MuiAlert-message": { minWidth: 0, width: "100%" } }}
+            action={
+              <Button
+                size="small"
+                color="inherit"
+                onClick={() => setShowErrorDetails((value) => !value)}
+              >
+                {showErrorDetails ? t("install.hideDetails") : t("install.details")}
+              </Button>
+            }
+          >
+            <Typography
+              variant="body2"
+              sx={
+                showErrorDetails
+                  ? {
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                      fontFamily: "monospace",
+                      fontSize: 12,
+                    }
+                  : { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }
+              }
+            >
+              {installError}
+            </Typography>
+          </Alert>
+        )}
       </Stack>
     </Box>
   );
